@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<connector xmlns="http://java.sun.com/xml/ns/j2ee"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://java.sun.com/xml/ns/j2ee
+    http://java.sun.com/xml/ns/j2ee/connector_1_5.xsd"
+    version="1.5">
+
+    <description>maxant Generic Resource Adapter</description>
+    <display-name>maxant Generic Resource Adapter</display-name>
+    <vendor-name>www.maxant.ch</vendor-name>
+    <eis-type>maxant Generic Resource Adapter</eis-type>
+    <resourceadapter-version>2.0</resourceadapter-version>
+
+    <resourceadapter>
+
+        <resourceadapter-class>
+            ch.maxant.generic_jca_adapter.GenericResourceAdapter
+        </resourceadapter-class>
+        <outbound-resourceadapter>
+            <connection-definition>
+                <managedconnectionfactory-class>
+                    ch.maxant.generic_jca_adapter.ManagedTransactionAssistanceFactory
+                </managedconnectionfactory-class>
+                <connectionfactory-interface>
+                    ch.maxant.generic_jca_adapter.TransactionAssistanceFactory
+                </connectionfactory-interface>
+                <connectionfactory-impl-class>
+                    ch.maxant.generic_jca_adapter.TransactionAssistanceFactoryImpl
+                </connectionfactory-impl-class>
+                <connection-interface>
+                    ch.maxant.generic_jca_adapter.TransactionAssistant
+                </connection-interface>
+                <connection-impl-class>
+                    ch.maxant.generic_jca_adapter.TransactionAssistantImpl
+                </connection-impl-class>
+            </connection-definition>
+
+            <transaction-support>
+                XATransaction
+            </transaction-support>
+            <reauthentication-support>
+                false
+            </reauthentication-support>
+        </outbound-resourceadapter>
+
+    </resourceadapter>
+</connector>

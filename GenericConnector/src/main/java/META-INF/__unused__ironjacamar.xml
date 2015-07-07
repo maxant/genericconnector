@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ironjacamar>
+	<connection-definitions>
+crap		<connection-definition
+			class-name="ch.maxant.generic_jca_adapter.ManagedTransactionAssistanceFactory"
+			jndi-name="java:/maxant/GenericResourceAdapter"
+		>
+		
+		<!-- sets isXa -->
+		<xa-pool>
+		</xa-pool>
+
+		<recovery no-recovery="FALSE" >
+			<recover-credential>
+				<user-name>uname</user-name>
+				<password>pword</password>
+			</recover-credential>
+		</recovery>
+		</connection-definition>
+	</connection-definitions>
+	<transaction-support>XATransaction</transaction-support>
+</ironjacamar>
