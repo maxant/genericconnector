@@ -230,15 +230,6 @@ public class SomeServiceThatBindsResourcesIntoTransaction {
 	// TODO test killing server, so that recovery runs
 	// TODO update jboss forum
 	// TODO mavenise all and publish impl JAR to maven? => then you just need to package it to make it work
-	// TODO gitify all
-	// TODO blog title?: "Creating a generic JCA adapter to get eventual consistency for free"
-	// TODO blog title?: "Binding web services and other non-transactional resources into Java EE transactions, simply"
-	// TODO blog: successful execute is a guarantee that commit can take place. commit and rollback should be able to be called multiple times in case RA has problems!
-	// TODO blog: create client using: wsimport -s src http://localhost:8080/GenericConnectorDemoAquirerWebservice/AcquirerWebService?wsdl
-	// TODO blog: http://pubs.opengroup.org/onlinepubs/009680699/toc.pdf p32 => failure to commit should throw XA_RETRY
-	// TODO blog: cut DB during commit -> check alls well => what about with other DB? e.g. h2? always seems to end in HeuristicMixedException and DB isnt inserted :-(
-	// TODO blog: show how to bind book/cancel if service is simpler
-	// TODO blog: mention that its wise for the back end to automatically cancel executions that time out
 	// TODO ???
 	
 	private int insertFirstRecordIntoDatabase() throws SQLException {

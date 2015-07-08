@@ -23,7 +23,7 @@ public class GenericResourceAdapter implements ResourceAdapter {
 
     private final Logger log = Logger.getLogger(this.getClass().getName());
 
-    private Map<String, CommitRollbackRecoveryCallback> commitRollbackRecoveryCallbacks = new HashMap<>();
+    private Map<String, CommitRollbackRecoveryCallback> commitRollbackRecoveryCallbacks = new HashMap<String, CommitRollbackRecoveryCallback>();
     
     @Override
 	public void endpointActivation(MessageEndpointFactory endpointFactory, ActivationSpec spec) throws ResourceException {

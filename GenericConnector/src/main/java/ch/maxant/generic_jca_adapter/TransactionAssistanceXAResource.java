@@ -271,7 +271,7 @@ public class TransactionAssistanceXAResource implements XAResource, Serializable
     public Xid[] recover(int flag) throws XAException {
         //TODO when is this called? 20150625 - i think after a restart when things go really wrong.
 
-    	List<Xid> xids = new ArrayList<>();
+    	List<Xid> xids = new ArrayList<Xid>();
     	
     	switch(flag) {
     	case (XAResource.TMSTARTRSCAN):
@@ -381,7 +381,7 @@ public class TransactionAssistanceXAResource implements XAResource, Serializable
 	}
 
     private String[] getTransactionsInNeedOfRecovery() {
-    	List<String> unfinishedTxs = new ArrayList<>();
+    	List<String> unfinishedTxs = new ArrayList<String>();
 		for(File f : conn.getRecoveryStatePersistenceDirectory().listFiles(executeFilter)){
 			try {
 				if(getFileAgeInMs(f) > 30000){ //TODO use transaction timeout?? or maybe we just list all EXECUTEs, and TX Manager is clever enough to know its in the middle of committing/rolling back some of them, ie the ones that are not in need of recovery??

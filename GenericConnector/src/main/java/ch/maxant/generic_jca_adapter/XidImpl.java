@@ -63,10 +63,12 @@ public class XidImpl implements Xid {
     		Object[] o = (Object[]) ois.readObject();
     		byte[] branchQualifier = (byte[]) o[0];
     		byte[] gtid = (byte[]) o[1];
-    		int formatId = (int) o[2];
+    		int formatId = (Integer) o[2];
     		
     		return new XidImpl(gtid, formatId, branchQualifier);
-    	} catch (ClassNotFoundException | IOException e) {
+    	} catch (ClassNotFoundException e){
+    		throw new RuntimeException("Failed to unmarshal xid " + base64, e);
+    	} catch (IOException e) {
 			throw new RuntimeException("Failed to unmarshal xid " + base64, e);
     	}
     }

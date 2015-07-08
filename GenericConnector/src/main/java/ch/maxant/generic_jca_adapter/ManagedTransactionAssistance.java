@@ -37,7 +37,7 @@ public class ManagedTransactionAssistance implements ManagedConnection, Serializ
 
     private PrintWriter logWriter;
 
-    private List<ConnectionEventListener> listeners = new ArrayList<>();
+    private List<ConnectionEventListener> listeners = new ArrayList<ConnectionEventListener>();
 
     private TransactionAssistant connection;
 
