@@ -27,13 +27,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.annotation.Resource;
-import javax.ejb.LocalBean;
 import javax.ejb.SessionContext;
 import javax.ejb.Stateless;
-import javax.ejb.TransactionAttribute;
-import javax.ejb.TransactionAttributeType;
-import javax.ejb.TransactionManagement;
-import javax.ejb.TransactionManagementType;
 import javax.sql.DataSource;
 
 import ch.maxant.generic_jca_adapter.TransactionAssistanceFactory;
@@ -139,8 +134,6 @@ if necessary, here is an H2 XA config, which uses the same driver as the normal 
 
  */
 @Stateless
-@LocalBean
-@TransactionManagement(TransactionManagementType.CONTAINER)
 public class SomeServiceThatBindsResourcesIntoTransaction {
 
     private final Logger log = Logger.getLogger(this.getClass().getName());
@@ -161,7 +154,6 @@ public class SomeServiceThatBindsResourcesIntoTransaction {
     @Resource
     private SessionContext ctx;
 
-    @TransactionAttribute(TransactionAttributeType.REQUIRED)
     public String doSomethingInvolvingSeveralResources(String refNumber)
             throws Exception {
 

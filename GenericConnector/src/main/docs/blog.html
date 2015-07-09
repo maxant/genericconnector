@@ -49,11 +49,16 @@ something like the Arjuna transaction manager from JBoss which supports
 <a href='http://docs.oasis-open.org/ws-tx/wstx-wsat-1.2-spec.html' target='_blank'>WS-AT</a>.
 See for example 
 <a href='http://www.jboss.org/quickstarts/eap/wsat-simple/' target='_blank'>this project</a>
-<a href='https://github.com/jboss-developer/jboss-eap-quickstarts/tree/6.4.0.GA/wsat-simple' target='_blank'>(or its source on Github)</a>.
-There are at least two problems with that solution though, namely NFR-99 and NFR-19, 
-i.e. the API isn't portable and REST doesn't support WS-AT (as far as I know, although there is 
+<a href='https://github.com/jboss-developer/jboss-eap-quickstarts/tree/6.4.0.GA/wsat-simple' target='_blank'>(or its source on Github)</a>
+or
+<a href='https://github.com/jbosstm/quickstart/tree/master/XTS' target='_blank'>this JBoss example</a>
+or indeed
+<a href='https://metro.java.net/guide/ch18.html' target='_blank'>this Metro example</a>.
+There are several problems with those solution though: NFR-99 (the APIs used are not portable);
+NFR-19 (REST doesn't support WS-AT, although there is 
 <a href='https://issues.jboss.org/browse/JBTM-1468' target='_blank'>something in the pipeline</a>
-at JBoss).
+at JBoss); and the fact that the web services we are integrating might not even support WS-AT ()I have integrated many internal and external web services over the years
+but never come across one which supports WS-AT).
 <br/>
 <br/>
 Over the years I have worked on projects which have had similar requirements but which have produced different solutions. I've seen and heard of companies 
@@ -61,11 +66,11 @@ who end up effectively building their own transaction managers, which bind web s
 about consistency and ignore NFR-45.  Yet a few years ago I had an idea of how to fulfil all of those requirements yet avoid such a complex solution that it was 
 akin to building a transaction manager.  NFR-84 almost comes to the rescue! Java EE application servers support distributed transaction via
 <a href='https://en.wikipedia.org/wiki/Two-phase_commit_protocol' target='_blank'>two phase commit</a>. 
-I say "almost" in the last sentence because what is missing is some form of adapter for binding 
+I wrote "almost" because what is missing is some form of adapter for binding 
 non-standard resources like web services into such transactions.  But the Java EE specifications also contain
 <a href='https://www.jcp.org/en/jsr/detail?id=112' target='_blank'>JSR-112</a>, 
-a specification for building resource adapters, that can be bound into distributed transactions. My idea was to build a generic resource adapter
-that could be used to bind web services into the transaction under the control of the application server, with as little configuration as necessary and with
+the JCA specification for building resource adapters, that can be bound into distributed transactions. My idea was to build a generic resource adapter
+that could be used to bind web services and other things into the transaction under the control of the application server, with as little configuration as necessary and with
 as simple an API as I could design.  To understand the idea better, let's take a look at how you can bind a database into an XA transaction 
 <a href='https://dev.mysql.com/doc/refman/5.7/en/xa-statements.html' target='_blank'>using SQL</a>.
 Listing 1 shows a list of statements which are needed to commit data in an XA transaction:
@@ -94,8 +99,8 @@ mysql> select * from person;
 <br/>
 The branch of a global transaction is started within the database (a resource manager) on line 1. Any arbitrary transaction ID can be used and typically the global transaction 
 manager inside the application server generates this ID. 
-Line 3 is where the "business code" goes, i.e. all the statements relating to why we are using the database, i.e. to insert data and run queries.
-Once all that business stuff is finished, and between such statements you could be calling other remote resources, the transaction is ended using line 5. Note however
+Line 3 is where the "business code" is executed, i.e. all the statements relating to why we are using the database, i.e. to insert data and run queries.
+Once all that business stuff is finished, and between lines 1 and 5 you could be calling other remote resources, the transaction is ended using line 5. Note however
 that the transaction isn't yet complete, it just moves to a state where the global transaction manager can start to query each resource manager as to whether it should
 go ahead and commit the transaction. If just one resource manager decides it does not want to commit the data, then the transaction manager will tell all the others to 
 rollback their transactions.  If however all of the resource managers report that they are happy to commit the transaction, and they do so via line 7, then the transaction
@@ -123,7 +128,8 @@ It doesn't - it guarantees eventual consistency - only the local transactions vi
 There is one more important step in the two phase commit protocol, namely recovery, which must be implemented for failure cases.  When either the transaction manager
 or a resource manager becomes unavailable, the transaction managers job is to keep trying until eventually the entire system again becomes consistent.  In order to do this
 it can query the resource manager to find transactions which the resource manager believes to be incomplete.  In Mysql the relevant command is shown in listing 2
-together with its result.  I ran this command before the commit command in listing 1.  After the commit, the result set is empty, since the resource manager 
+together with its result, namely that a transaction is incomplete.  
+I ran this command before the commit command in listing 1.  After the commit, the result set is empty, since the resource manager 
 cleans up after itself and removes the successful transaction.
 
 <div>
@@ -139,20 +145,37 @@ mysql> XA RECOVER ;
 <b><small>Listing 2: The XA recover command in SQL</small></b><br/>
 <br/>
 Now, the JCA spec includes the ability for the application manager to retrieve an XA Resource from the adapter which represents a resource which understands commands like
-start, end, prepare, commit, rollback and recover.  The challenge is now to create a web service which understands those commands, just like a remote database engine does.
-But we don't need to support every command, since we can make a few assumptions to significantly simplify everything.  Consider for example NFR-08 and NBS, the booking 
-system.  If the booking system were able to make a note of the booking and reserve resources related to it, i.e. the seats in the concert hall, so that no other customer
-could reserve or book them, then that would be just like a database inserting a row which is not yet committed.  Let's call this the "execution" phase.  Let's also 
-make an assumption here that a successful call to reserve the tickets is a guarantee that the booking system can commit that booking.  Even if there is a failure so that
-the transaction manager cannot immediately commit, the successful reservation guarantees that the transaction manager can try again later. The only reason why the 
-transaction manager cannot commit immediately is a technical reason, and never a business related reason.  Of course it is unrealistic to hold on to seats forever and 
-there is another reason why a commit can fail and that is because of a timeout on the "resources" i.e. the seats.  So the booking system needs a contract as follows:
-<ul>
-    <li>A successful reservation of tickets guarantees that the transaction manager can commit the reservation so long as it is done withing X seconds,</li>
-    <li>There are no business reasons except for the timeout which mean the reservation cannot be committed,</li>
-    <li>A call to commit or rollback the reservation can be done multiple times and never results in an error unless the booking system isn't available 
-        in which case the transaction manager may try again.</li>
-</ul>
+start, end, prepare, commit, rollback and recover.  The challenge is now to use that fact to create a resource adapter that can call web services which know how to 
+commit and rollback, just like a remote database engine does.
+If we make a few assumptions we can define a contract which such remote web services needs to implement, then we can get two phase commit to work across web service calls.
+<br/>
+<br/>
+Consider for example NFR-22 and MMF, the acquirer system. 
+Typically payment systems let you reserve money and then shortly afterwards book the reservation.  The idea is that you call their service to ensure there are funds available
+and you reserve some money, you then 
+complete all your business transactions on your side, and then definitely book the reserved money once your data is committed.  
+The same often goes for ticket booking systems in my
+experience where a ticket can be booked, and shortly afterwards confirmed, at a time when you are willing to take responsibility for its cost.  
+I will refer to the initial step as the "execution" and the latter step as the "commital".  Of course if you cannot complete business on your side, you can rollback the 
+booking, or if you aren't as friendly you can just leave it because the provider will eventually let the reservation timeout so that the reserved "resource" can be used
+elsewhere, for example so tha the customer can go shopping.
+<br/>
+<br/>
+It is that kind of system that we want to bind into our transaction.  The contract for such services looks as follows:
+<ol>
+    <li>The provider may let non-committed and non-rolledback executions timeout afterwhich they may use the reserved resources elsewhere.</li>
+    <li>A successful execution guarantees that the transaction manager is allowed to commit the reserved resources, as long as no timeout occurs,</li>
+    <li>There are no business reasons except for the timeout which mean the commit or rollback cannot take place. If the commit or rollback fails, it should only be for technical reasons.</li>
+    <li>A call to commit or rollback the reservation can be done multiple times without side effects, so that the transaction manager can finish the transaction if it was having trouble.</li>
+</ol>
+
+
+Sometimes systems are built
+more simply, e.g. they let you book a tickets and if you need to you can cancel it, but you don't have to firm up the booking after it has been done.
+
+
+TODO note the app server TM is not keeping any transactions behind the web service open!!!
+
 That means we need to provide three operations on the booking web service: one to reserve the tickets; one to commit the reservation when the global transaction is committed
 and one to rollback the reservation, if the global transaction is rolled back.  Optionally we can implement a "recovery" operation but equally we could build the resource
 adapter so that it handles that part internally - it knows about the state of the transactions since it has been making calls to the web service.
@@ -177,14 +200,11 @@ Listing 3 shows an example of how to bind the web service call into a transactio
 <div>
 <pre class="prettyprint linenums">
 @Stateless
-@LocalBean
-@TransactionManagement(TransactionManagementType.CONTAINER)
 public class SomeServiceThatBindsResourcesIntoTransaction {
 
   @Resource(lookup = "java:/maxant/BookingSystem")
   private TransactionAssistanceFactory bookingFactory;
 ...
-  @TransactionAttribute(TransactionAttributeType.REQUIRED)
   public String doSomethingInvolvingSeveralResources(String refNumber) {
 ...
     BookingSystem bookingSystem = new BookingSystemWebServiceService()
@@ -212,18 +232,18 @@ public class SomeServiceThatBindsResourcesIntoTransaction {
 </div>
 <b><small>Listing 3: Binding a web service call into a transaction</small></b><br/>
 <br/>
-Line 1-2 create an EJB so that line 3 can declare that we want the container to handle transactions for us.
-Lines 6-7 then ensure that the relevant classes of the resource adapter are injected the service.
-Line 9 ensures that a transaction is running when our service method is called.
-Line 12 creates a new instance of a web service client.  This client code was generated using <code>wsimport</code> and the WSDL service definition.
-Lines 15-18 create the "transaction assistant" which the resource adapter makes available.  
-The assistant is then used on line 23 to run line 25 within the transaction.  Under the hood, this sets up the XA resource which the transaction manager 
-uses to commit or rollback the connection. Line 25 returns a <code>String</code> which line 23 returns synchronously.
+Line 1 designates the class as an EJB which by default uses container managed transactions and requires a transaction to be present 
+on each method call, starting one if none exists.
+Lines 4-5 ensure that an instance of the relevant class of the resource adapter is injected into the service.
+Line 9 creates a new instance of a web service client.  This client code was generated using <code>wsimport</code> and the WSDL service definition.
+Lines 13-14 create the "transaction assistant" which the resource adapter makes available.  
+The assistant is then used on line 20 to run line 22 within the transaction.  Under the hood, this sets up the XA resource which the transaction manager 
+uses to commit or rollback the connection. Line 22 returns a <code>String</code> which sets the <code>String</code> on line 19 synchronously.
 <br/>
 <br/>
-Compare this code to writing to a database: lines 1-3 and line 9 are required anyway; lines 6 and 7 are like injecting a <code>DataSource</code> or 
-<code>EntityManager</code>; lines 12 and 16-17 differ slightly but are similar to opening a connection to the database; finally line 23 is like executing some 
-SQL.
+Compare this code to writing to a database: lines 4 and 5 are like injecting a <code>DataSource</code> or 
+<code>EntityManager</code>; lines 9 and 14-15 differ slightly but are similar to opening a connection to the database; finally lines 20-22 are like making a 
+call to execute some SQL.
 <br/>
 <br/>
 So, the overhead of binding a web service call into a transaction, up until now, is very small.  There is however one small step still missing, and that is to 
@@ -401,12 +421,21 @@ but the hope is that the next time it tries (roughly every two minutes in JBoss 
 <h3>Tests</h3>
 <h3>Results</h3>
 
-<h3>FAQ</h3>
 <a id='FAQ'></a>
+<h3>FAQ</h3>
 <ul>
     <li><b>What happens if a web service takes a long time to come back online, after a business operation is executed but before the commit/rollback 
     operation has been called?</b>
-    Transactions that require recovery may end up in trouble, because the 
+    Transactions that require recovery may end up in trouble if they take a long time to come back online, because it is recommended that the 
+    systems behind the web service implement a timeout after which they clean up reserved but not booked (committed) resources.  Take the example
+    where a seat is reserved in a theatre during the execution but the final booking of the seat is delayed due to a system failure.  It is entirely
+    possible that the seat will be released after say half an hour so that it can be sold to other potential customers.  If the seat is released
+    and some time later the application server which reserved it attempts to book the seat, there could be an inconsistency in the system as a 
+    whole, as the other participants in the global transaction could be committed, indicating that the seat was sold, and for example money 
+    was taken for the seat, yet the seat has been sold to another customer.  <b>This case can occur in normal two phase commit processes.</b>
+    Imagine a database transaction that creates a foreign key reference to a record, but that record is deleted in a different transaction. 
+    Normally the solution is to lock resources, which the reservation of the seat actually is.  But indefinate locking of resources can cause problems
+    like deadlocks.   This problem is not unique to the solution presented here.  
     </li>
     <li></li>
     <li></li>
