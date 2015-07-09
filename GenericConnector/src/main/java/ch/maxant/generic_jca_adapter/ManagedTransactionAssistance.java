@@ -1,3 +1,19 @@
+/*
+   Copyright 2015 Ant Kutschera
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+
+ */
 package ch.maxant.generic_jca_adapter;
 
 import java.io.File;
@@ -31,9 +47,9 @@ import ch.maxant.generic_jca_adapter.TransactionAssistanceFactory.CommitRollback
  */
 public class ManagedTransactionAssistance implements ManagedConnection, Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final Logger log = Logger.getLogger(this.getClass().getName());
+    private final Logger log = Logger.getLogger(this.getClass().getName());
 
     private PrintWriter logWriter;
 
@@ -47,47 +63,47 @@ public class ManagedTransactionAssistance implements ManagedConnection, Serializ
     /** the current transaction ID */
     private String currentTxId;
 
-	private CommitRollbackRecoveryCallback commitRollbackRecoveryCallback;
+    private CommitRollbackRecoveryCallback commitRollbackRecoveryCallback;
 
-	//spec 1.6: 7.3.2.1: "A resource adapter is responsible for maintaining a 1-1 relationship between the
-	//ManagedConnection and XAResource instances. Each time a
-	//ManagedConnection.getXAResource method is called, the same XAResource
-	//instance has to be returned."
-	private TransactionAssistanceXAResource xa;
+    //spec 1.6: 7.3.2.1: "A resource adapter is responsible for maintaining a 1-1 relationship between the
+    //ManagedConnection and XAResource instances. Each time a
+    //ManagedConnection.getXAResource method is called, the same XAResource
+    //instance has to be returned."
+    private TransactionAssistanceXAResource xa;
 
-	/** should the resource adapter track state for recovery, or will the remote system be able to tell us about transactions that require recovery? */
-	private boolean handleRecoveryInternally;
+    /** should the resource adapter track state for recovery, or will the remote system be able to tell us about transactions that require recovery? */
+    private boolean handleRecoveryInternally;
 
-	/** if {@link #handleRecoveryInternally} is true, then this is the directory where to persist state. */
-	private File recoveryStatePersistenceDirectory;
+    /** if {@link #handleRecoveryInternally} is true, then this is the directory where to persist state. */
+    private File recoveryStatePersistenceDirectory;
 
-	/** managedConnectionFactoryId from the managed connection factory */
-	private String managedConnectionFactoryId;
+    /** managedConnectionFactoryId from the managed connection factory */
+    private String managedConnectionFactoryId;
 
-	public ManagedTransactionAssistance(CommitRollbackRecoveryCallback commitRollbackRecoveryCallback, boolean handleRecoveryInternally, File recoveryStatePersistenceDirectory, String managedConnectionFactoryId) {
-		this.commitRollbackRecoveryCallback = commitRollbackRecoveryCallback;
-		this.handleRecoveryInternally = handleRecoveryInternally;
-		this.recoveryStatePersistenceDirectory = recoveryStatePersistenceDirectory;
-		this.managedConnectionFactoryId = managedConnectionFactoryId;
-    	this.xa = new TransactionAssistanceXAResource(this);
-    	this.connection = new TransactionAssistantImpl(this);
-	}
+    public ManagedTransactionAssistance(CommitRollbackRecoveryCallback commitRollbackRecoveryCallback, boolean handleRecoveryInternally, File recoveryStatePersistenceDirectory, String managedConnectionFactoryId) {
+        this.commitRollbackRecoveryCallback = commitRollbackRecoveryCallback;
+        this.handleRecoveryInternally = handleRecoveryInternally;
+        this.recoveryStatePersistenceDirectory = recoveryStatePersistenceDirectory;
+        this.managedConnectionFactoryId = managedConnectionFactoryId;
+        this.xa = new TransactionAssistanceXAResource(this);
+        this.connection = new TransactionAssistantImpl(this);
+    }
 
-	@Override
-	public PrintWriter getLogWriter() throws ResourceException {
-		return logWriter;
-	}
-	
-	@Override
-	public void setLogWriter(PrintWriter logWriter) throws ResourceException {
-		this.logWriter = logWriter;
-	}
-	
     @Override
-	public Object getConnection(Subject subject, ConnectionRequestInfo cxRequestInfo) throws ResourceException {
-		//during recovery, currentTxId and executeWasSuccessful are unknown, so we cannot check them like this:
-    	//if(currentTxId == null) throw new IllegalStateException("transaction not started?");
-		//if(executeWasSuccessful != null) throw new IllegalStateException("did you forget to call close?");
+    public PrintWriter getLogWriter() throws ResourceException {
+        return logWriter;
+    }
+    
+    @Override
+    public void setLogWriter(PrintWriter logWriter) throws ResourceException {
+        this.logWriter = logWriter;
+    }
+    
+    @Override
+    public Object getConnection(Subject subject, ConnectionRequestInfo cxRequestInfo) throws ResourceException {
+        //during recovery, currentTxId and executeWasSuccessful are unknown, so we cannot check them like this:
+        //if(currentTxId == null) throw new IllegalStateException("transaction not started?");
+        //if(executeWasSuccessful != null) throw new IllegalStateException("did you forget to call close?");
 
         return connection;
     }
@@ -101,13 +117,13 @@ public class ManagedTransactionAssistance implements ManagedConnection, Serializ
      */
 
     @Override
-	public void associateConnection(Object connection) throws ResourceException {
-    	//never seen this called in JBoss!
+    public void associateConnection(Object connection) throws ResourceException {
+        //never seen this called in JBoss!
         if (!(connection instanceof TransactionAssistant)) throw new IllegalArgumentException("Connection must be of type TransactionAssistant instead of " + connection.getClass());
         this.connection = (TransactionAssistant) connection;
     }
 
-	@Override
+    @Override
     public void cleanup() throws ResourceException {
         log.log(Level.INFO, "cleaning up managed connection");
 
@@ -124,18 +140,18 @@ public class ManagedTransactionAssistance implements ManagedConnection, Serializ
     }
 
     @Override
-	public void addConnectionEventListener(ConnectionEventListener listener) {
+    public void addConnectionEventListener(ConnectionEventListener listener) {
         if (listener == null) throw new IllegalArgumentException("Listener is null");
         listeners.add(listener);
     }
 
     @Override
-	public void removeConnectionEventListener(ConnectionEventListener listener) {
+    public void removeConnectionEventListener(ConnectionEventListener listener) {
         if (listener == null) throw new IllegalArgumentException("Listener is null");
         listeners.remove(listener);
     }
 
-	@Override
+    @Override
     public LocalTransaction getLocalTransaction() throws ResourceException {
         throw new NotSupportedException("LocalTransaction not supported");
     }
@@ -145,23 +161,23 @@ public class ManagedTransactionAssistance implements ManagedConnection, Serializ
         return xa;
     }
 
-	@Override
+    @Override
     public ManagedConnectionMetaData getMetaData() throws ResourceException {
         return new ManagedTransactionAssistanceMetaData();
     }
 
-	/** Calls the callback to do some work bound into the transaction. 
-	 * Tracks transaction state internally if necessary. */
-	public <O> O execute(ExecuteCallback<O> f) throws Exception {
-		if(currentTxId == null) throw new IllegalStateException("XID not yet set - was transaction started?");
-		if(executeWasSuccessful != null) throw new IllegalStateException("not closed?");
-		
-		if(handleRecoveryInternally){
-			persistTransactionState();
-		}
-		
+    /** Calls the callback to do some work bound into the transaction. 
+     * Tracks transaction state internally if necessary. */
+    public <O> O execute(ExecuteCallback<O> f) throws Exception {
+        if(currentTxId == null) throw new IllegalStateException("XID not yet set - was transaction started?");
+        if(executeWasSuccessful != null) throw new IllegalStateException("not closed?");
+        
+        if(handleRecoveryInternally){
+            persistTransactionState();
+        }
+        
         try{
-        	O o = f.execute(currentTxId);
+            O o = f.execute(currentTxId);
             executeWasSuccessful = true;
             return o;
         }catch(Exception e) {
@@ -170,12 +186,12 @@ public class ManagedTransactionAssistance implements ManagedConnection, Serializ
         }
     }
 
-	private void persistTransactionState() throws IOException {
-		Files.write(File.createTempFile("exec.", ".txt", getRecoveryStatePersistenceDirectory()).toPath(), currentTxId.getBytes(StandardCharsets.UTF_8));
-	}
+    private void persistTransactionState() throws IOException {
+        Files.write(File.createTempFile("exec.", ".txt", getRecoveryStatePersistenceDirectory()).toPath(), currentTxId.getBytes(StandardCharsets.UTF_8));
+    }
 
     public void close(TransactionAssistant handle) {
-    	ConnectionEvent event = new ConnectionEvent(this, ConnectionEvent.CONNECTION_CLOSED);
+        ConnectionEvent event = new ConnectionEvent(this, ConnectionEvent.CONNECTION_CLOSED);
         event.setConnectionHandle(handle);
         for(ConnectionEventListener l : listeners){
             l.connectionClosed(event);
@@ -203,19 +219,19 @@ public class ManagedTransactionAssistance implements ManagedConnection, Serializ
     }
 
     public CommitRollbackRecoveryCallback getCommitRollbackRecoveryCallback() {
-		return commitRollbackRecoveryCallback;
-	}
+        return commitRollbackRecoveryCallback;
+    }
     
     public boolean isHandleRecoveryInternally() {
-		return handleRecoveryInternally;
-	}
+        return handleRecoveryInternally;
+    }
     
     public File getRecoveryStatePersistenceDirectory() {
-		return recoveryStatePersistenceDirectory;
-	}
+        return recoveryStatePersistenceDirectory;
+    }
     
     /** the managedConnectionFactoryId of the managed connection factory */
     public String getManagedConnectionFactoryId() {
-		return managedConnectionFactoryId;
-	}
+        return managedConnectionFactoryId;
+    }
 }

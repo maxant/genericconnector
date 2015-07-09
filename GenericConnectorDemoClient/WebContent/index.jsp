@@ -3,6 +3,22 @@
 <%@page import="javax.naming.NamingEnumeration"%>
 <%@page import="javax.naming.InitialContext"%>
 <%
+/*
+   Copyright 2015 Ant Kutschera
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+
+ */
 String name = request.getParameter("name");
 if(name == null){
     name = "java:/";
@@ -18,18 +34,18 @@ Name: <input type="text" name="name" value="<%=name %>"  accesskey="n" />
 <%
 InitialContext ic = new InitialContext();
 try{
-	NamingEnumeration<NameClassPair> o = ic.list(name);
-	while(o.hasMoreElements()){
-	    Object o2 = o.next();
-	    if(o2 instanceof Context){
-	        Context c = (Context)o2;
-	        %><a href="index.jsp?name=<%=c.getNameInNamespace()%>"><%=c.getNameInNamespace()%> (<%=o2%>)</a><br/><%
-	    }else{
-	        %><%=o2%><br/><%
-	    }
-	}
+    NamingEnumeration<NameClassPair> o = ic.list(name);
+    while(o.hasMoreElements()){
+        Object o2 = o.next();
+        if(o2 instanceof Context){
+            Context c = (Context)o2;
+            %><a href="index.jsp?name=<%=c.getNameInNamespace()%>"><%=c.getNameInNamespace()%> (<%=o2%>)</a><br/><%
+        }else{
+            %><%=o2%><br/><%
+        }
+    }
 }catch(Exception e){
-	e.printStackTrace();
+    e.printStackTrace();
     %>Error: <%=e%><br/><%
 }
 %>

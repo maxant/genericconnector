@@ -1,3 +1,19 @@
+/*
+   Copyright 2015 Ant Kutschera
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+
+ */
 package ch.maxant.generic_jca_adapter;
 
 import java.util.HashMap;
@@ -26,27 +42,27 @@ public class GenericResourceAdapter implements ResourceAdapter {
     private Map<String, CommitRollbackRecoveryCallback> commitRollbackRecoveryCallbacks = new HashMap<String, CommitRollbackRecoveryCallback>();
     
     @Override
-	public void endpointActivation(MessageEndpointFactory endpointFactory, ActivationSpec spec) throws ResourceException {
+    public void endpointActivation(MessageEndpointFactory endpointFactory, ActivationSpec spec) throws ResourceException {
         log.log(Level.INFO, "activating endpoint");
     }
 
     @Override
-	public void endpointDeactivation(MessageEndpointFactory endpointFactory, ActivationSpec spec) {
+    public void endpointDeactivation(MessageEndpointFactory endpointFactory, ActivationSpec spec) {
         log.log(Level.INFO, "deactivating endpoint");
     }
 
     @Override
-	public void start(BootstrapContext ctx) throws ResourceAdapterInternalException {
+    public void start(BootstrapContext ctx) throws ResourceAdapterInternalException {
         log.log(Level.INFO, "starting resource adapter");
     }
 
     @Override
-	public void stop() {
+    public void stop() {
         log.log(Level.INFO, "stopping resource adapter");
     }
 
     @Override
-	public XAResource[] getXAResources(ActivationSpec[] specs) throws ResourceException {
+    public XAResource[] getXAResources(ActivationSpec[] specs) throws ResourceException {
         log.log(Level.INFO, "getting xa resources");
         //TODO never seen this method called by Jboss! therefore:
         throw new ResourceException("not supported - altho we can if its necessary...");
@@ -55,36 +71,36 @@ public class GenericResourceAdapter implements ResourceAdapter {
     }
 
     @Override
-	public int hashCode() {
-    	return 69;
-	}
+    public int hashCode() {
+        return 69;
+        }
 
     @Override
-	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (getClass() != obj.getClass())
-			return false;
-		return true;
-	}
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (obj == null)
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        return true;
+        }
 
     /** client code can register a callback to enable commit, rollback and recovery */
     synchronized void registerCommitRollbackRecovery(String managedConnectionFactoryId, CommitRollbackRecoveryCallback commitRollbackRecoveryCallback) {
-		if(this.commitRollbackRecoveryCallbacks.containsKey(managedConnectionFactoryId)){
-			throw new IllegalStateException("Unable to register commit/rollback/recovery for managed connection factory with ID '" + managedConnectionFactoryId + "', because a callback has already been registered. Please unregister it first!");
-		}
-		this.commitRollbackRecoveryCallbacks.put(managedConnectionFactoryId, commitRollbackRecoveryCallback);
-	}
-	
+        if(this.commitRollbackRecoveryCallbacks.containsKey(managedConnectionFactoryId)){
+            throw new IllegalStateException("Unable to register commit/rollback/recovery for managed connection factory with ID '" + managedConnectionFactoryId + "', because a callback has already been registered. Please unregister it first!");
+            }
+        this.commitRollbackRecoveryCallbacks.put(managedConnectionFactoryId, commitRollbackRecoveryCallback);
+        }
+    
     /** client code can unregister the callback which was registered using {@link #registerCommitRollbackRecovery(String, CommitRollbackRecoveryCallback)} */
     synchronized void unregisterCommitRollbackRecovery(String managedConnectionFactoryId){
-		this.commitRollbackRecoveryCallbacks.remove(managedConnectionFactoryId);
-	}
+        this.commitRollbackRecoveryCallbacks.remove(managedConnectionFactoryId);
+    }
 
     /** get the callback registered using {@link #registerCommitRollbackRecovery(String, CommitRollbackRecoveryCallback)} */
-	CommitRollbackRecoveryCallback getCommitRollbackRecoveryCallback(String managedConnectionFactoryId) {
-		return commitRollbackRecoveryCallbacks.get(managedConnectionFactoryId);
-	}
+    CommitRollbackRecoveryCallback getCommitRollbackRecoveryCallback(String managedConnectionFactoryId) {
+        return commitRollbackRecoveryCallbacks.get(managedConnectionFactoryId);
+    }
 }

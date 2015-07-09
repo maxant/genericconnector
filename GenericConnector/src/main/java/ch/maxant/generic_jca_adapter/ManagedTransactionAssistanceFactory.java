@@ -1,3 +1,19 @@
+/*
+   Copyright 2015 Ant Kutschera
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+
+ */
 package ch.maxant.generic_jca_adapter;
 
 import java.io.File;
@@ -32,12 +48,12 @@ import ch.maxant.generic_jca_adapter.TransactionAssistanceFactory.CommitRollback
 )
 public class ManagedTransactionAssistanceFactory implements ManagedConnectionFactory, ResourceAdapterAssociation {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final Logger log = Logger.getLogger(this.getClass().getName());
+    private final Logger log = Logger.getLogger(this.getClass().getName());
 
-	private PrintWriter logWriter;
-	
+    private PrintWriter logWriter;
+    
     private ResourceAdapter resourceAdapter;
 
     @ConfigProperty(supportsDynamicUpdates=false, defaultValue="false")
@@ -49,35 +65,35 @@ public class ManagedTransactionAssistanceFactory implements ManagedConnectionFac
     @ConfigProperty(supportsDynamicUpdates=false)
     private String id;
 
-	private File recoveryStatePersistenceDirectoryFile;
+    private File recoveryStatePersistenceDirectoryFile;
     
-	private boolean initialised = false;
-	
+    private boolean initialised = false;
+    
     private synchronized void lazyInit(){
-    	if(initialised) return;
-		if(isHandleRecoveryInternally()){
-			if(recoveryStatePersistenceDirectory == null || recoveryStatePersistenceDirectory.isEmpty()){
-				log.log(Level.SEVERE, "The '" + id + "' adapter has been configured to handle recovery state internally, but the configuration property 'recoveryStatePersistenceDirectoryConfig' has not been set!");
-			}else{
-				log.log(Level.WARNING, "The '" + id + "' adapter WILL track transaction state internally. The associated EIS does NOT need to be able to return incomplete transactions and there is NO need to provide an implementation of CommitRollbackRecoveryCallback#getTransactionsInNeedOfRecovery().");
-				recoveryStatePersistenceDirectoryFile = new File(recoveryStatePersistenceDirectory);
-				if(!recoveryStatePersistenceDirectoryFile.exists()){
-					if(!recoveryStatePersistenceDirectoryFile.mkdirs()){
-						String msg = "FAILED TO CREATE DIRECTORY '" + recoveryStatePersistenceDirectoryFile.getAbsolutePath() + "' - the resource adapter will be unable to track state. Throwing exception now...";
-						log.log(Level.SEVERE, msg);
-						throw new RuntimeException(msg);
-					}else{
-						log.log(Level.INFO, "Transaction state for '" + id + "' will be written in new directory '" + recoveryStatePersistenceDirectoryFile.getAbsolutePath() + "'");
-					}
-				}else{
-					log.log(Level.INFO, "Transaction state for '" + id + "' will be written in existing directory '" + recoveryStatePersistenceDirectoryFile.getAbsolutePath() + "'");
-				}
-			}
-		}else{
-			log.log(Level.WARNING, "The '" + id + "' adapter will NOT track transaction state internally. The associated EIS MUST be able to return incomplete transactions and you MUST provide an implementation of CommitRollbackRecoveryCallback#getTransactionsInNeedOfRecovery()!");
-		}
-		initialised = true;
-	}
+        if(initialised) return;
+        if(isHandleRecoveryInternally()){
+            if(recoveryStatePersistenceDirectory == null || recoveryStatePersistenceDirectory.isEmpty()){
+                log.log(Level.SEVERE, "The '" + id + "' adapter has been configured to handle recovery state internally, but the configuration property 'recoveryStatePersistenceDirectoryConfig' has not been set!");
+            }else{
+                log.log(Level.WARNING, "The '" + id + "' adapter WILL track transaction state internally. The associated EIS does NOT need to be able to return incomplete transactions and there is NO need to provide an implementation of CommitRollbackRecoveryCallback#getTransactionsInNeedOfRecovery().");
+                recoveryStatePersistenceDirectoryFile = new File(recoveryStatePersistenceDirectory);
+                if(!recoveryStatePersistenceDirectoryFile.exists()){
+                    if(!recoveryStatePersistenceDirectoryFile.mkdirs()){
+                        String msg = "FAILED TO CREATE DIRECTORY '" + recoveryStatePersistenceDirectoryFile.getAbsolutePath() + "' - the resource adapter will be unable to track state. Throwing exception now...";
+                        log.log(Level.SEVERE, msg);
+                        throw new RuntimeException(msg);
+                    }else{
+                        log.log(Level.INFO, "Transaction state for '" + id + "' will be written in new directory '" + recoveryStatePersistenceDirectoryFile.getAbsolutePath() + "'");
+                    }
+                }else{
+                    log.log(Level.INFO, "Transaction state for '" + id + "' will be written in existing directory '" + recoveryStatePersistenceDirectoryFile.getAbsolutePath() + "'");
+                }
+            }
+        }else{
+            log.log(Level.WARNING, "The '" + id + "' adapter will NOT track transaction state internally. The associated EIS MUST be able to return incomplete transactions and you MUST provide an implementation of CommitRollbackRecoveryCallback#getTransactionsInNeedOfRecovery()!");
+        }
+        initialised = true;
+    }
     
     /**
      * Creates a Connection Factory instance.
@@ -87,8 +103,8 @@ public class ManagedTransactionAssistanceFactory implements ManagedConnectionFac
      * @throws ResourceException Generic exception
      */
     @Override
-	public Object createConnectionFactory() throws ResourceException {
-    	lazyInit();
+    public Object createConnectionFactory() throws ResourceException {
+        lazyInit();
         throw new ResourceException("This resource adapter doesn't support non-managed environments");
     }
 
@@ -104,8 +120,8 @@ public class ManagedTransactionAssistanceFactory implements ManagedConnectionFac
      * @throws ResourceException Generic exception
      */
     @Override
-	public Object createConnectionFactory(ConnectionManager cxManager) throws ResourceException {
-    	lazyInit();
+    public Object createConnectionFactory(ConnectionManager cxManager) throws ResourceException {
+        lazyInit();
         return new TransactionAssistanceFactoryImpl(this, cxManager);
     }
 
@@ -119,15 +135,15 @@ public class ManagedTransactionAssistanceFactory implements ManagedConnectionFac
      * @return ManagedConnection instance
      */
     @Override
-	public ManagedConnection createManagedConnection(Subject subject, ConnectionRequestInfo cxRequestInfo) throws ResourceException {
-    	lazyInit();
+    public ManagedConnection createManagedConnection(Subject subject, ConnectionRequestInfo cxRequestInfo) throws ResourceException {
+        lazyInit();
         CommitRollbackRecoveryCallback callback = ((GenericResourceAdapter)this.resourceAdapter).getCommitRollbackRecoveryCallback(id);
-		return new ManagedTransactionAssistance(callback, isHandleRecoveryInternally(), recoveryStatePersistenceDirectoryFile, id);
+        return new ManagedTransactionAssistance(callback, isHandleRecoveryInternally(), recoveryStatePersistenceDirectoryFile, id);
     }
 
-	private Boolean isHandleRecoveryInternally() {
-		return Boolean.valueOf(handleRecoveryInternally);
-	}
+    private Boolean isHandleRecoveryInternally() {
+        return Boolean.valueOf(handleRecoveryInternally);
+    }
 
     /**
      * For pooling support.
@@ -141,13 +157,13 @@ public class ManagedTransactionAssistanceFactory implements ManagedConnectionFac
      * @return ManagedConnection if resource adapter finds an acceptable match otherwise null
      */
     @SuppressWarnings({ "rawtypes", "unchecked" })
-	@Override
-	public ManagedConnection matchManagedConnections(Set connectionSet, Subject subject, ConnectionRequestInfo cxRequestInfo) throws ResourceException {
-    	lazyInit();
-    	ManagedConnection result = null;
-    	Iterator<ManagedConnection> it = connectionSet.iterator();
+    @Override
+    public ManagedConnection matchManagedConnections(Set connectionSet, Subject subject, ConnectionRequestInfo cxRequestInfo) throws ResourceException {
+        lazyInit();
+        ManagedConnection result = null;
+        Iterator<ManagedConnection> it = connectionSet.iterator();
         while (result == null && it.hasNext()) {
-        	ManagedConnection mc = it.next();
+            ManagedConnection mc = it.next();
             if (mc instanceof ManagedTransactionAssistance) {
                 result = mc;
             }
@@ -155,67 +171,67 @@ public class ManagedTransactionAssistanceFactory implements ManagedConnectionFac
         return result;
     }
 
-	@Override
-	public PrintWriter getLogWriter() throws ResourceException {
-		return logWriter;
-	}
-	
-	@Override
-	public void setLogWriter(PrintWriter logWriter) throws ResourceException {
-		this.logWriter = logWriter;
-	}
+    @Override
+    public PrintWriter getLogWriter() throws ResourceException {
+        return logWriter;
+    }
+    
+    @Override
+    public void setLogWriter(PrintWriter logWriter) throws ResourceException {
+        this.logWriter = logWriter;
+    }
  
-	@Override
-	public ResourceAdapter getResourceAdapter() {
-		return resourceAdapter;
-	}
-	
-	@Override
-	public void setResourceAdapter(ResourceAdapter resourceAdapter)
-			throws ResourceException {
-		this.resourceAdapter = resourceAdapter;
-	}
+    @Override
+    public ResourceAdapter getResourceAdapter() {
+        return resourceAdapter;
+    }
+    
+    @Override
+    public void setResourceAdapter(ResourceAdapter resourceAdapter)
+            throws ResourceException {
+        this.resourceAdapter = resourceAdapter;
+    }
 
-	@Override
-	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		result = prime * result + ((id == null) ? 0 : id.hashCode());
-		return result;
-	}
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + ((id == null) ? 0 : id.hashCode());
+        return result;
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (getClass() != obj.getClass())
-			return false;
-		ManagedTransactionAssistanceFactory other = (ManagedTransactionAssistanceFactory) obj;
-		if (id == null) {
-			if (other.id != null)
-				return false;
-		} else if (!id.equals(other.id))
-			return false;
-		return true;
-	}
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (obj == null)
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        ManagedTransactionAssistanceFactory other = (ManagedTransactionAssistanceFactory) obj;
+        if (id == null) {
+            if (other.id != null)
+                return false;
+        } else if (!id.equals(other.id))
+            return false;
+        return true;
+    }
 
-	public void setHandleRecoveryInternally(
-			String handleRecoveryInternally) {
-		this.handleRecoveryInternally = handleRecoveryInternally;
-	}
-	
-	public void setRecoveryStatePersistenceDirectory(
-			String recoveryStatePersistenceDirectory) {
-		this.recoveryStatePersistenceDirectory = recoveryStatePersistenceDirectory;
-	}
-	
-	public void setId(String id){
-		this.id = id;
-	}
-	
-	public String getId() {
-		return id;
-	}
+    public void setHandleRecoveryInternally(
+            String handleRecoveryInternally) {
+        this.handleRecoveryInternally = handleRecoveryInternally;
+    }
+    
+    public void setRecoveryStatePersistenceDirectory(
+            String recoveryStatePersistenceDirectory) {
+        this.recoveryStatePersistenceDirectory = recoveryStatePersistenceDirectory;
+    }
+    
+    public void setId(String id){
+        this.id = id;
+    }
+    
+    public String getId() {
+        return id;
+    }
 }
