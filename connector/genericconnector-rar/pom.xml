@@ -1,0 +1,48 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>ch.maxant</groupId>
+		<artifactId>genericconnector-parent</artifactId>
+		<version>2.0.0-SNAPSHOT</version>
+        <relativePath>../genericconnector-parent</relativePath>
+	</parent>
+    <artifactId>genericconnector-rar</artifactId>
+    <packaging>rar</packaging>
+  
+    <dependencies>
+		<dependency>
+			<groupId>ch.maxant</groupId>
+			<artifactId>genericconnector-api</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>ch.maxant</groupId>
+			<artifactId>genericconnector-impl</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+    </dependencies>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-rar-plugin</artifactId>
+                <version>2.4</version>
+                <configuration>
+                    <rarSourceDirectory>src/main/java</rarSourceDirectory>
+                    <includeJar>true</includeJar>
+                <!-- 
+                    <raXmlFile>src/main/java/META-INF/ra.xml</raXmlFile>
+                 -->
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>rar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

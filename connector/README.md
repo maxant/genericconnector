@@ -1,9 +1,8 @@
 #genericconnector
 
-See connector/README.md for more details.
+This folder contains the source of the actual generic connector resource adapter.
 
-This folder contains the resource adapter under "connector" and demo modules
-showing how to use the connector.
+Build using maven starting from genericconnector-parent.
 
 ##License
 
