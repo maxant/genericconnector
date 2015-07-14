@@ -6,7 +6,7 @@ See details at http://blog.maxant.co.uk/pebble/2015/TODO
 
 Unlike WS-AT the idea is that the resources being integrated, like web services, have business operations for **executing** business logic and then **committing** or **rolling** back the business logic.  If the web service you want to integrate has no commit operation, because for example the execution already commits, then simply leave the implementation of the commit callback empty (see usage).  Transactions will be eventually consistent.
 
-Compatible with Java EE 6 (JCA 1.5) and Java SE 1.6.
+Compatible with Java EE 6 (JCA 1.5) upwards and Java SE 1.6 upwards.
 Tested on JBoss EAP 6.2, Wildfly 8.2 and Wildfly 9.0.
 
 See connector/genericconnector-parent/README.md for more details.
