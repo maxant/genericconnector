@@ -9,7 +9,7 @@ Unlike WS-AT the idea is that the resources being integrated, like web services,
 Compatible with Java EE 6 (JCA 1.5) upwards and Java SE 1.6 upwards.
 Tested on JBoss EAP 6.2, Wildfly 8.2 and Wildfly 9.0.
 
-See connector/genericconnector-parent/README.md for more details.
+See connector/README.md for more details.
 
 This folder contains:
 - the "connector" folder, containing the resource adapter
