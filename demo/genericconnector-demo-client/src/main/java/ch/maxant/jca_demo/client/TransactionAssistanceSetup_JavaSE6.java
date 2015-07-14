@@ -16,9 +16,6 @@
  */
 package ch.maxant.jca_demo.client;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.annotation.PostConstruct;
@@ -28,10 +25,6 @@ import javax.ejb.Singleton;
 import javax.ejb.Startup;
 
 import ch.maxant.generic_jca_adapter.TransactionAssistanceFactory;
-import ch.maxant.generic_jca_adapter.TransactionAssistanceFactory.CommitRollbackRecoveryCallback;
-import ch.maxant.jca_demo.client.generated.acquirer.AcquirerWebServiceService;
-import ch.maxant.jca_demo.client.generated.bookingsystem.BookingSystemWebServiceService;
-import ch.maxant.jca_demo.client.generated.letterwriter.LetterWebServiceService;
 
 /** A Java 6 compatible implementation */
 @Startup
@@ -51,6 +44,7 @@ public class TransactionAssistanceSetup_JavaSE6 {
 
     @PostConstruct
     public void init() {
+/* cannot register callbacks twice - either Java SE 6 or 8! See TransactionAssistanceSetup
         acquirerFactory.registerCommitRollbackRecovery(new CommitRollbackRecoveryCallback(){
 			@Override
 			public String[] getTransactionsInNeedOfRecovery() {
@@ -117,6 +111,8 @@ public class TransactionAssistanceSetup_JavaSE6 {
                 .cancelLetter(txid);
 			}
         });
+        
+*/
     }
 
     @PreDestroy

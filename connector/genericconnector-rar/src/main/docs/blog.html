@@ -13,11 +13,11 @@ Ant Kutschera, 201507
 I've published a generic JCA resource adapter on
 <a href='https://github.com/maxant/GenericConnector' target='_blank'>Github</a>
 available from Maven
-(<a href='TODO' target='_blank'>ch.maxant:genericconnector</a>)
+(<a href='https://maven-repository.com/artifact/ch.maxant/genericconnector' target='_blank'>ch.maxant:genericconnector</a>)
 with an
 <a href='http://www.apache.org/licenses/LICENSE-2.0' target='_blank'>Apache 2.0 licence</a>
 which let's you bind things like REST and SOAP web services into JTA transactions under the control of Java EE application servers,
-so that you can build systems which guarantee data consistency, very easily. Be sure to read the 
+so that you can build systems which guarantee data consistency, with as little boiler plate code as possible, very easily. Be sure to read the 
 <a href='#FAQ'>FAQ</a>.
 <br/>
 <br/>
@@ -57,13 +57,15 @@ or indeed
 There are several problems with those solution though: NFR-99 (the APIs used are not portable);
 NFR-19 (REST doesn't support WS-AT, although there is 
 <a href='https://issues.jboss.org/browse/JBTM-1468' target='_blank'>something in the pipeline</a>
-at JBoss); and the fact that the web services we are integrating might not even support WS-AT ()I have integrated many internal and external web services over the years
-but never come across one which supports WS-AT).
+at JBoss); and the fact that the web services we are integrating might not even support WS-AT.  I have integrated many internal and external web services over the years
+but never come across one which supports WS-AT.
 <br/>
 <br/>
 Over the years I have worked on projects which have had similar requirements but which have produced different solutions. I've seen and heard of companies 
 who end up effectively building their own transaction managers, which bind web services into transactions.  I've also seen and heard of companies who don't worry 
-about consistency and ignore NFR-45.  Yet a few years ago I had an idea of how to fulfil all of those requirements yet avoid such a complex solution that it was 
+about consistency and ignore NFR-45.  I like the idea of consistency, but I don't like the idea of a business project writing a framework which tracks the state 
+of transactions and manually commits or rolls them back trying to stay synchronised with a Java EE Transaction Manager. 
+So a few years ago I had an idea of how to fulfil all of those requirements yet avoid such a complex solution that it was 
 akin to building a transaction manager.  NFR-84 almost comes to the rescue! Java EE application servers support distributed transaction via
 <a href='https://en.wikipedia.org/wiki/Two-phase_commit_protocol' target='_blank'>two phase commit</a>. 
 I wrote "almost" because what is missing is some form of adapter for binding 
@@ -115,7 +117,8 @@ process and ensure consistency.  Up to and including the prepare statement, the 
 <br/>  
 <br/>
 If some resource managers report that they are prepared to commit but others report they want to rollback, or indeed others don't answer, then the transaction will be 
-rolled back.  It might take time, if resource managers have crashed and become unavailable, but the global transaction manager will ensure that all resources rollback.
+rolled back.  It might take time, if resource managers have crashed and become unavailable, but the global transaction manager will ensure that all resource managers
+rollback.
 <br/>
 <br/>
 Once however all resource managers have successfully reported that they want to commit, there is no going back.  The transaction manager will attempt to commit the 
@@ -145,21 +148,27 @@ mysql> XA RECOVER ;
 <b><small>Listing 2: The XA recover command in SQL</small></b><br/>
 <br/>
 <a id='contract'></a>
-Now, the JCA spec includes the ability for the application manager to retrieve an XA Resource from the adapter which represents a resource which understands commands like
+Now, the JCA spec includes the ability for the transaction manager to retrieve an XA Resource from the adapter which represents a resource which understands commands like
 start, end, prepare, commit, rollback and recover.  The challenge is now to use that fact to create a resource adapter that can call web services which know how to 
 commit and rollback, just like a remote database engine does.
-If we make a few assumptions we can define a contract which such remote web services needs to implement, then we can get two phase commit to work across web service calls.
+If we make a few assumptions we can define a simplified contract which such remote web services need to implement, 
+then we can get two phase commit to work across remote web service calls.
 <br/>
 <br/>
 Consider for example NFR-22 and MMF, the acquirer system. 
-Typically payment systems let you reserve money and then shortly afterwards book the reservation.  The idea is that you call their service to ensure there are funds available
-and you reserve some money, you then 
-complete all your business transactions on your side, and then definitely book the reserved money once your data is committed.  
+Typically payment systems let you reserve money and then shortly afterwards book the reservation.  The idea is that you call their service to ensure there are funds
+available and you reserve some money, you then 
+complete all your business transactions on your side, and then definitely book the reserved money once your data is committed (see the 
+<a href='#FAQ'>FAQ</a>
+ for an alternative).  The reserving and definitely booking should take no more than a few seconds. Reserving and releasing the reservation in the event of a 
+ crash should take no more than a few minutes.
 The same often goes for ticket booking systems in my
 experience where a ticket can be booked, and shortly afterwards confirmed, at a time when you are willing to take responsibility for its cost.  
-I will refer to the initial step as the "execution" and the latter step as the "commital".  Of course if you cannot complete business on your side, you can rollback the 
-booking, or if you aren't as friendly you can just leave it because the provider will eventually let the reservation timeout so that the reserved "resource" can be used
-elsewhere, for example so that the customer can go shopping.
+I will refer to the initial step as the <b><i>execution</i></b> and the latter step as the <b><i>commit</i></b>.  Of course if you cannot complete business on your side, 
+a third step namely <b><i>rollback</i></b> can be run in order to cancel the booking.  If you aren't friendly enough to rollback and you just leave the reservation open
+the provider should eventually let the reservation <b><i>timeout</i></b> so that 
+the reserved "resource" (money or tickets in this example) can be used elsewhere, for example so that the customer can go shopping or the ticket can be bought by someone
+else.
 <br/>
 <br/>
 It is that kind of system that we want to bind into our transaction.  The contract for such services looks as follows:
@@ -170,25 +179,25 @@ It is that kind of system that we want to bind into our transaction.  The contra
     <li>A successful execution guarantees that the transaction manager is allowed to commit or rollback the reserved resources, as long as no timeout has occurred
         <a href='#footnote2'><sup>2</sup></a>,</li>
     <li>A call to commit or rollback the reservation can be done multiple times without side effects, 
-        so that the transaction manager may finish the transaction if it was having trouble.</li>
+        so that the transaction manager may finish the transaction if an initial attempt failed.</li>
 </ol>
 
+<hr/>
 <a id='footnote1'></a>
-1) Sometimes web services offer an execution operation and an operation for cancelling the call, e.g. so that money is indeed not taken from the customers account.
+Footnote #1: Sometimes web services offer an execution operation and an operation for cancelling the call, e.g. so that money is indeed not taken from the customers account.
 If we go back to the discussion around listing 2 where I stated that the transactions are eventually consistent rather than immediately consistent, it becomes clear
-that it doesn't matter if a system in a global transaction definitely books resources during the execution phase rather than waiting until the commit phase.  Eventually, 
-either all systems will also commit, or all will rollback and the money transaction will be cancelled, returning funds to the customers account.  Note however that a 
+that it doesn't matter if a system in a global transaction definitely books resources during the execution stage rather than waiting until the commit stage.  Eventually, 
+either all systems will also commit, or all will rollback and the money transaction will be cancelled, freeing up reserved funds on the customers account.  Note however that a 
 service offering all three operations is cleaner, and if it is possible to influence the system design, it is recommended to ensure the services being integrated offer all
 three operations: execute, commit and rollback.
 <br/>
 <br/>
 <a id='footnote2'></a>
-2) After a successful call to the execute operation, a web service may not refuse to commit or rollback the transaction due to say business rules. It may only temporarily 
+Footnote #2: After a successful call to the execute operation, a web service may not refuse to commit or rollback the transaction due to say business rules. It may only temporarily 
 fail due to technical problems, in which case the transaction manager may attempt completion again shortly afterwards. It is not acceptable to build business rules into
 the commit or rollback operations. All validation must be completed during the execution, i.e. before commit or rollback time.  The same is true in the database world - during
 XA transactions the database must check all constraints at latest during the prepare stage, i.e. definitely before the commit or rollback stage.
-<br/>
-<br/>
+<hr/>
 With a contract like this, there is a fundamental difference to the way in which WS-AT is designed: transactions behind the web service are NOT kept open between 
 execution and commit/rollback.  Take the acquirer example: the money that is reserved during execution is really put to one side and is no longer available to
 other entities trying to create a credit card transaction.  But the money also hasn't been transferred to our account.  There are three states: i) the money is in the customer's
@@ -196,30 +205,32 @@ credit; ii) the money is reserved and may not be used by other transactions; iii
 <br/>
 <br/>
 Compare this to a database running in a transaction: i) a row has not yet been inserted; ii) the row is inserted, but not currently visible to other transactions (although 
-that depends on the transaction isolation); iii) finally the row is committed and visible to everyone.  Although this is similar to the money example above there is a
-difference: the database transaction which reserves money is immediately visible to the entire world once it is commit during the "execution" stage - it is not invisible
-until after the commit stage.  The isolation level is different but of course the web service can be built to hide such information, based on the state, if the requirements
-are such.
-
-
-
+that depends on the transaction isolation level); iii) finally the row is committed and visible to everyone.  Although this is similar to the money example above there is a
+difference: the database transaction which reserves money is immediately visible to the entire world once it is commit during the "execution" stage - it does not remain
+invisible until after the commit stage.  The isolation level is different but of course the web service can be built to hide such information, based on the state, if the
+requirements are such.
+<br/>
+<br/>
 That means we need to provide three operations on the booking web service: one to reserve the tickets; one to commit the reservation when the global transaction is committed
-and one to rollback the reservation, if the global transaction is rolled back.  Optionally we can implement a "recovery" operation but equally we could build the resource
-adapter so that it handles that part internally - it knows about the state of the transactions since it has been making calls to the web service.
+and one to rollback the reservation, if the global transaction is rolled back.  The booking system should also contain a background process which releases resources after
+a given timeout, although that really does depend upon the functional business requirements of the booking system.
 <br/>
 <br/>
-So, with the above assumptions, we can build a JCA resource adapter which calls the web service at the correct time, when the transaction manager tells it the XA resource
-that it gets from the resource adapter to do things like start a transaction, execute some business code and commit or rollback the transaction.
+A fifth stage, namely <b><i>recovery</i></b> (see listings 1 &amp; 2) is required, but it does not necessarily need to be implemented by the web service because
+the adapter can handle that part internally - afterall it knows about the state of the transactions since it has been making calls to the web service.
 <br/>
 <br/>
+So, with the above assumptions, we can build a generic JCA resource adapter which tracks transaction state and calls the commit/rollback operations on web services 
+at the correct time, when the transaction manager tells the XA resource to do things like start a transaction, execute some business code and commit or rollback the 
+transaction.
 
 <h3>Implementation</h3>
 I won't cover the implementation of the adapter here, but rather I will show how to use it!
-The first requirement I gave myself was to build an API which I could use to add the business calls to the web service, inside a transaction, so that they could 
-be read fairly easily.
+The first requirement I gave myself was to build an API which allows you to add business calls to a web service, inside a transaction.
 <br/>
 <br/>
-Listing 3 shows an example of how to bind the web service call into a transaction using Java 8 lambdas (even though the API is compatible with Java 1.6).
+Listing 3 shows an example of how to bind the web service call into a transaction using Java 8 lambdas (even though the API is compatible with Java 1.6 - see Github for
+an example).
 
 <div>
 <pre class="prettyprint linenums">
@@ -239,6 +250,7 @@ public class SomeServiceThatBindsResourcesIntoTransaction {
                                 bookingFactory.getTransactionAssistant();
 ... ) {
       //NFR-34 write sales data to Oracle using JDBC and XA-Driver
+      ...
 
       //NFR-08 book tickets
       String bookingResponse = 
@@ -261,17 +273,18 @@ on each method call, starting one if none exists.
 Lines 4-5 ensure that an instance of the relevant class of the resource adapter is injected into the service.
 Line 9 creates a new instance of a web service client.  This client code was generated using <code>wsimport</code> and the WSDL service definition.
 Lines 13-14 create the "transaction assistant" which the resource adapter makes available.  
-The assistant is then used on line 20 to run line 22 within the transaction.  Under the hood, this sets up the XA resource which the transaction manager 
-uses to commit or rollback the connection. Line 22 returns a <code>String</code> which sets the <code>String</code> on line 19 synchronously.
+The assistant is then used on line 21 to run line 23 within the transaction.  Under the hood, this sets up the XA resource which the transaction manager 
+uses to commit or rollback the connection. Line 23 returns a <code>String</code> which sets the <code>String</code> on line 20 synchronously.
 <br/>
 <br/>
 Compare this code to writing to a database: lines 4 and 5 are like injecting a <code>DataSource</code> or 
-<code>EntityManager</code>; lines 9 and 14-15 differ slightly but are similar to opening a connection to the database; finally lines 20-22 are like making a 
+<code>EntityManager</code>; lines 9 and 13-14 differ slightly but are similar to opening a connection to the database; finally lines 21-23 are like making a 
 call to execute some SQL.
 <br/>
 <br/>
-So, the overhead of binding a web service call into a transaction, up until now, is very small.  There is however one small step still missing, and that is to 
-tell the application server how to tell the web service to commit or rollback.  This is done just once per web service, as shown in listing 4.
+So, the overhead of binding a web service call into a transaction is very small and similar to executing some SQL on a database.  Importantly
+the commit or rollback is not visible in application code above.
+However we do still need to show the application server how to commit and rollback.  This is done just once per web service, as shown in listing 4.
 <div>
 <pre class="prettyprint linenums">
 @Startup
@@ -311,7 +324,7 @@ needs to recover potentially incomplete transactions, it can do so as soon as it
 Lines 5-6 are like those in listing 3.
 Line 11 is where we register a callback with the resource adapter, so that it gains knowledge of how to commit and rollback transactions in the web service.
 I have used Java 8 lambdas here also, but if you are using Java 6/7 you can use an anonymous inner class instead of the new builder on line 11. 
-Lines 13-14 simply call book the tickets which were previously reserved, on line 25 of listing 3.
+Lines 13-14 simply call the web service to book the tickets which were previously reserved, on line 23 of listing 3.
 Lines 17-18 cancel the reserved tickets, should the transaction manager decide to rollback the global transaction.
 Very importantly, line 26 unregisters the callback for the adapter instance when the application is shutdown.  This is necessary because the adapter only allows
  you to register one callback at a time and if the application were restarted without unregistering the callback, line 11 would fail with an exception the second 
@@ -323,20 +336,18 @@ the adapter so that it can be deployed together with you application.
 
 <h3>Adapter Configuration</h3>
 The adapter needs to be configured once per web service which it should bind into transactions.
-To make that a little clearer, consider the code in listing 3 for registering callbacks for commit and rollback.  The callback can only be registered once
-but you don't need to configure the adapter once for each instance of the web service client - you only configure it once per web service.  That means you can call the 
-same web service multiple times within a global transaction - each call needs to use its own <code>TransactionAssistant</code> created using lines 16-17 of listing 3.
+To make that a little clearer, consider the code in listing 4 for registering callbacks for commit and rollback.  Only one callback can be registered per adapter 
+<i>instance</i> i.e. JNDI name.
 Configuring the adapter is application server specific, but only because of where you put the following XML.  In Jboss EAP 6 / Wildfly 8 upwards, it is put into 
 <code>&lt;jboss-install-folder&gt;/standalone/configuration/server.xml</code>, between the XML tags similar to 
-<code>subsystem xmlns="urn:jboss:domain:resource-adapters:...</code>.  The following XML conforms to the resource adapter specification.
-
+<code>&lt;subsystem xmlns="urn:jboss:domain:resource-adapters:...&gt;</code>
 
 <div>
 <pre class="prettyprint linenums">
 &lt;resource-adapters&gt;
   &lt;resource-adapter id="GenericConnector.rar"&gt;
     &lt;archive&gt;
-      GenericConnectorDemoEar.ear#GenericConnector.rar
+      genericconnector-demo-ear.ear#genericconnector.rar
     &lt;/archive&gt;
     &lt;transaction-support&gt;XATransaction&lt;/transaction-support&gt;
     &lt;connection-definitions&gt;
@@ -383,18 +394,19 @@ Line 11 defines the JNDI name used to lookup the resource in your EJB.
 Line 12 names the pool used for the connection definition.  It is recommended to use a unique name per connection definition.
 Lines 13-15 define the ID of the connection definition. You must use a unique name per connection definition.
 Lines 16-18 tell the resource adapter to track transaction state internally so that it can handle recovery without help from the web service which is being integrated. 
-The default value is false, in which case you must register a recovery callback in listing 5 - see listing 6 below.
+The default value is false, in which case you must register a recovery callback in listing 4 - see listing 6 below.
 Lines 19-21 are required if the resource adapter is configured to handle recovery internally - you must provide the path to a directory where it should write the transaction
 state which it needs to track.  It is recommended to use a directory on the local machine where the application server is running, rather than one located on the network.
 Lines 22-31 are required for JBoss so that it really does use the <code>XAResource</code> and bind calls into the global transaction.  It is possible that other 
-application servers only require line 6 - the deployment to other application servers has not yet been fully tested.
+application servers only require line 6 - the deployment to other application servers has not yet been fully tested 
+(<a href='https://developer.jboss.org/thread/229857' target='_blank'>more details...</a>).
 <br/>
 <br/>
-Until now I haven't said much about recovery.  Indeed, the "handleRecoveryInternally" attribute in the XML in listing 5 means that the application developer doesn't
-really need to think about recovery. Yet if we return to listing 2, recovery is a clear part of the two phase commit protocol.  Indeed Wikipedia states that "the
-protocol's participants use logging of the protocol's states".  I have to be honest that I don't fully understand why the transaction manager cannot do this instead.
-So that the adapter is more two phase conform, but also in case you are not allowed to let the adapter write to the file system (operations management departments in
-big corporations tend to be strict like this), it is also possible to provide the
+Until now I haven't said much about recovery.  Indeed, the <code>handleRecoveryInternally</code> attribute in the XML in listing 5 means that the application developer
+doesn't really need to think about recovery. Yet if we return to listing 2, recovery is a clear part of the two phase commit protocol.  Indeed Wikipedia states that 
+"<i>the protocol's participants use logging of the protocol's states</i>".  I have to be honest that I don't fully understand why the transaction manager cannot do 
+this instead.  So that the adapter is more two phase conform, but also in case you are not allowed to let the adapter write to the file system (operations management 
+departments in big corporations tend to be strict like this), it is also possible to provide the
 resource adapter with a callback so that it can ask the web service for an array of transaction numbers which the web services feels are in an incomplete state.
 Note, if the adapter is configured as above, then it tracks the state of the calls to the web service itself.  
 The information that the web service's commit or rollback method was called is 
@@ -406,8 +418,9 @@ you would want to register a recovery callback is that you are not allowed to le
 why XA requires the resource manager to provide a list of potentially incomplete transaction, when surely the transaction manager is able to track this state itself.
 <br/>
 <br/>
-Setting up recovery so that the adapter uses the web service to query transaction which it thinks are incomplete, involves first setting the "handleRecoveryInternally"
-attribute in the deployment descripter to <code>false</code> (after which you do not need to supply the "recoveryStatePersistenceDirectory" attribute) and second,
+Setting up recovery so that the adapter uses the web service to query transactions which it thinks are incomplete, involves first setting the 
+<code>handleRecoveryInternally</code>
+attribute in the deployment descriptor to <code>false</code> (after which you do not need to supply the <code>recoveryStatePersistenceDirectory</code> attribute) and second,
 adding a recovery callback, as shown in listing 6.  
 
 <div>
@@ -453,7 +466,8 @@ ever be shown an error.  Of course, if the web service is currently unavailable,
 but the hope is that the next time it tries (roughly every two minutes in JBoss Wildfly 8), the web service will again be available.
 
 <h3>Tests</h3>
-To test the adapter, a demo application was built (also available on Github) which calls three web services and writes to the database twice, all during 
+To test the adapter, a demo application based on the scenario described at the start of this article 
+was built (also available on Github) which calls three web services and writes to the database twice, all during 
 the same transaction.  The acquirer supports execution, commit, rollback and recovery; the booking system supports execution, commit and rollback; the
 letter writer only supports execution and commit.  In the test, the process first writes to the database, then calls the acquirer, then the booking
 system, then the letter writer and finally it updates the database.  This way, failure at several points in the process can be tested.
@@ -466,31 +480,91 @@ The adapter was tested using the following test cases:
     <li><b>Failure during execution of acquirer web service</b>- here, the failure occurs after an initial database insert to check that the insert is rolled back</li>
     <li><b>Failure during execution of booking web service</b>- here, the failure occurs after an initial database insert and the web service call to the acquirer to check that both are rolled back</li>
     <li><b>Failure during execution of letter writer web service</b>- here, the failure occurs after an initial database insert and two web service calls to check that all three are rolled back</li>
-    <li><b>During commit, web services are shut down</b>- by setting breakpoints in the commit callbacks, we can undeploy the web services and then let the execution 
+    <li><b>During commit, web services are shut down</b>- by setting breakpoints in the commit callbacks, we can undeploy the web services and then let the process 
         continue.  Initial committing on the web services fails but the database is fine and the data is available. 
         But after the web services are redeployed and up and running, the transaction manager again attempts
         to carry out the commit which should be successful.</li>
     <li><b>During commit, the database is shut down</b>- also using breakpoints, the database is shutdown just before the commit.  Commit works on the web services
         but fails on the database. Upon restarting the database, the next time the transaction manager runs a recovery it should commit the database.</li>
-    <li><b></b>- </li>
+    <li><b>Kill application server before commit</b>- Here we check that nothing is ever commit.</li>
+    <li><b>Kill application server during commit</b>- Here we check that after the server restarted and recovery runs, that consistency across all systems is restored.</li>
 </ul>
 
-TODO
-
-TODO after restarting the database, why does the database never have a row inserted, and the client receives a HeuristicMixedException??
-
-- Add a breakpoint during commit, and kill the server. After server restart, the web services become committed (wait 2 minutes for JBoss to run recovery!) but the database may not, depending where the crash occurred. TODO why not? See HeuristicMixedException above.
-
-##Places to check for transaction state:
-
-- The database, in the `temp.person` and `temp.address` tables => one row is written per call to the servlet
-- In the folder jboss/standalone/data/bookingsystem-tx-object-store/ => either a file name exec...txt exists and the transaction is incomplete, or the file has been deleted.
-- In the folder jboss/standalone/data/letterwriter-tx-object-store/ => either a file name exec...txt exists and the transaction is incomplete, or the file has been deleted.
-- In the folder ~/temp/xa-transactions-state-acquirer/ => file named exectxt exists if transaction is incomplete; file named commit...txt exists if transaction was committed; file named rollback...txt exists if transaction was rolled back.
-
-
-
 <h3>Results</h3>
+The demo application and resource adapter log everything they do, so the first port of call is to read the logs during each test.
+Additionally, the database writes to disk, so we can use a database client to query the database state for example 
+<code>select * from person p inner join address a on a.person_FK = p.id;</code>.
+The acquirer writes to the folder <code>~/temp/xa-transactions-state-acquirer/</code>. There, a file named 
+<code>exec*txt</code> exists if the transaction is incomplete, otherwise it is named <code>commit*txt</code> or <code>rollback*txt</code> if it was commit or rolledback,
+respectively.
+The booking system writes to the folder <code>&lt;jboss-install&gt;/standalone/data/bookingsystem-tx-object-store/</code>. 
+The letter writer writes to the folder <code>&lt;jboss-install&gt;/standalone/data/letterwriter-tx-object-store/</code>. 
+The adapter removes the temporary file named <code>exec*txt</code> once the transaction is commit or rolled back, so the only way to verify completion
+is to read the adapter logs, although checking that the files are removed makes sense, albeit doesn't inform whether there was a commit or a rollback.
+<br/>
+<br/>
+The results were all positive, except when shutting down the database or killing the application server.  In both of those cases the database never committed the transaction
+meaning that the system as a whole was in an inconsistent state.  The application server continuously logged that there was an incomplete transaction but was unable to 
+complete the transaction in the database.  At the point in time when the database was shutdown, the application returned a
+<a href='https://docs.oracle.com/javaee/6/api/javax/transaction/HeuristicMixedException.html' target='_blank'>HeuristicMixedException</a> to indicate to the user
+that something is not and will not ever be consistent.  
+The error logged by JBoss is:
+<br/>
+<br/>
+<code>...WARN  [com.arjuna.ats.jta] (Periodic Recovery) ARJUNA016037: Could not find new XAResource to use for recovering non-serializable XAResource 
+XAResourceRecord &lt; 
+    resource:null, 
+    txid: &lt;...eis_name=unknown eis name &gt;, 
+    heuristic: TwoPhaseOutcome.FINISH_OK ...&gt;
+</code>
+<br/>
+<br/>
+As far as I am concerned, this behaviour is a bug in the database driver/server! Here is why:
+
+<a href='http://pubs.opengroup.org/onlinepubs/009680699/toc.pdf' target='_blank'>page 32 of the XA specifications</a> states that "<i>TODO</i>", i.e. failure to commit should
+throw an exception with the code <code>XA_RETRY</code>. Yet Mysql's Driver (version 5.1.36) contains the following lines of code in their <code>MysqlXAConnection</code> in
+the <code>commit</code> method:
+<br/>
+<br/>
+<code>
+        return (XAException) new MysqlXAException(XAException.XAER_RMFAIL, Messages.getString("MysqlXAConnection.003"), null).initCause(sqlEx);
+</code>
+<br/>
+<br/>
+They are using the wrong code. I tried using the H2 database which also has an XA driver but there too, the driver just throws an <code>XAException</code> with a string 
+message which means that the default code 0 is taken, i.e. not the code which tells the transaction manager to try again. A further problem is that Mysql does not retain 
+the information about which transactions need recovery, if it is restarted.  You can see this by setting a breakpoint in the Mysql driver where it commits the XA transaction.
+Before it has a chance to send the <code>XA COMMIT</code> command from listing 1, use listing 2 to verify that a transaction is waiting to be commit. Then bounce the database
+server and try listing 2 again and Mysql has lost all knowledge of the need to recover the transaction.  
+According to my understanding and the <code>XAException</code> Javadocs, the failed commits should be returning <code>XA_RETRY</code>,
+as we do in our generic resource adapter.  The Javadocs state:
+"<i>
+     *  Error code indicating that the method invoked returned without having
+     *  any effect, and that it may be invoked again.
+     *  Note that this constant is not defined in JTA 1.0.1, but appears in
+     *  J2EE(TM) as shipped by SUN.
+     */
+    public static final int XA_RETRY       = 4;
+All this is not good news.  There is however some good news.
+</i>"
+
+
+
+To accommodate recovery from failure (automatic in most cases) the protocol's participants use logging of the protocol's states. Log records, which are typically slow to generate but survive failures, are used by the protocol's recovery procedures. 
+
+
+https://developer.jboss.org/message/935799#935799
+
+http://forums.mysql.com/list.php?39
+
+
+
+<br/>
+<br/>
+
+
+
+
 
 <a id='FAQ'></a>
 <h3>FAQ</h3>
@@ -515,28 +589,35 @@ TODO after restarting the database, why does the database never have a row inser
     Actually I do, but sadly the world is full of services which don't offer WS-AT support.  And the adapter I have written here is generic enough
     that you could be integrating non-web service resources.</li>
     <li><b>Why not just create an implementation of
-    <a href='TODO' target='_blank'>XAResource</a>
+    <a href='http://docs.oracle.com/javaee/6/api/javax/transaction/xa/XAResource.html' target='_blank'>XAResource</a>
     and enlist it into the transaction using the 
-    <a href='TODO' target='_blank'><code>enlistResource</code></a>
+    <a href='http://docs.oracle.com/javaee/6/api/javax/transaction/Transaction.html#enlistResource(javax.transaction.xa.XAResource)' target='_blank'><code>enlistResource</code></a>
     method?</b>
     Because doing so doesn't handle recovery.  The generic connecter presented here also handles recovery when either the resource
     or the application server crash during commit/rollback.</li>
     <li><b>This is crazy - I don't want to implement commit and rollback operations on my web services!</b>WS-AT is for you!</li>
+    <li><b>The payment system I am integrating executes the payment on their own website, but the "commit" occurs over an HTTP call. How can I integrate this?</b>
+        Yes! redirect to their site to do the payment; when they callback to your site, run your business logic in a transaction and using the transaction assistant
+        execute a no-op method in the execution stage which will cause the commit callback to be called upon commit time; in the commit callback make the HTTP
+        call to the payment system to confirm the payment.</li>
 </ul>
+<h3>Using the generic adapter in your project</h3>
+To use the adapter in your application you need to do the follwing things:
+<ul>
+    <li>Create a dependecy on the <code>ch.maxant:genericconnector-api</code> Maven module,</li>
+    <li>Write code as shown in listing 3 to execute business operations on the web services that your application integrates,</li> 
+    <li>Setup commit and rollback callbacks as shown in listing 4, and optionally a recovery callback as shown in listing 6,</li>
+    <li>Configure the resource adapter as shown in listing 5</li>
+    <li>Deploy the resource adapter in an EAR by adding the Maven module <code>ch.maxant:genericconnector-rar</code> and referencing it as a connector module in 
+        the <code>application.xml</code> deployment descriptor.
+</ul>
+For more information, see the 
+<a href='https://github.com/maxant/genericconnector/tree/master/demo' target='_blank'>demo application</a>.
+
 <h3>Conclusions</h3>
-<br/>
-<br/>
-
-
-
-
-
-
-
-
-
-
-
+The idea that I had, namely to bind web service calls into JTA transactions using a generic JCA resource adapter does work.  It reduces the need to build your own
+transaction manager and it does ensure that there is concistency across the entire system, regardless of whether a transaction is commit or rolled back in the application
+code running in the Java EE application server.
 
 <br/>
 <br/>
@@ -583,12 +664,402 @@ some code
     // TODO redo tests using request params
     // TODO redo tests documented above
     // TODO test killing server, so that recovery runs
-    // TODO update jboss forum
-    // TODO mavenise all and publish impl JAR to maven? => then you just need to package it to make it work
-    // TODO blog: successful execute is a guarantee that commit can take place. commit and rollback should be able to be called multiple times in case RA has problems!
     // TODO blog: create client using: wsimport -s src http://localhost:8080/GenericConnectorDemoAquirerWebservice/AcquirerWebService?wsdl
     // TODO blog: http://pubs.opengroup.org/onlinepubs/009680699/toc.pdf p32 => failure to commit should throw XA_RETRY
     // TODO blog: cut DB during commit -> check alls well => what about with other DB? e.g. h2? always seems to end in HeuristicMixedException and DB isnt inserted :-(
     // TODO blog: show how to bind book/cancel if service is simpler
-    // TODO blog: mention that its wise for the back end to automatically cancel executions that time out
-    // TODO ???
+
+    
+//STARTUP    
+07:08:22,854 INFO  [org.jboss.as.server.deployment] (MSC service thread 1-2) JBAS015973: Starting subdeployment (runtime-name: "genericconnector-rar-2.0.0-SNAPSHOT.rar")
+07:08:24,574 INFO  [org.jboss.weld.deployer] (MSC service thread 1-3) JBAS016002: Processing weld deployment genericconnector-rar-2.0.0-SNAPSHOT.rar
+07:08:25,602 INFO  [org.jboss.as.connector.deployers.RADeployer] (MSC service thread 1-3) IJ020001: Required license terms for file:/t/wildfly-8.2.0.Final/standalone/deployments/genericconnector-demo-ear.ear/genericconnector-rar-2.0.0-SNAPSHOT.rar/
+07:08:26,201 INFO  [org.jboss.as.connector.deployers.RaXmlDeployer] (MSC service thread 1-6) IJ020001: Required license terms for file:/t/wildfly-8.2.0.Final/standalone/deployments/genericconnector-demo-ear.ear/genericconnector-rar-2.0.0-SNAPSHOT.rar/
+07:08:26,245 WARNING [ch.maxant.generic_jca_adapter.ManagedTransactionAssistanceFactory] (MSC service thread 1-6) The 'LetterWriter' adapter WILL track transaction state internally. The associated EIS does NOT need to be able to return incomplete transactions and there is NO need to provide an implementation of CommitRollbackRecoveryCallback#getTransactionsInNeedOfRecovery().
+07:08:26,247 INFO  [ch.maxant.generic_jca_adapter.ManagedTransactionAssistanceFactory] (MSC service thread 1-6) Transaction state for 'LetterWriter' will be written in existing directory '/t/wildfly-8.2.0.Final/bin/../standalone/data/letterwriter-tx-object-store'
+07:08:26,259 INFO  [org.jboss.as.connector.deployment] (MSC service thread 1-6) JBAS010406: Registered connection factory java:/maxant/LetterWriter
+07:08:26,272 WARNING [ch.maxant.generic_jca_adapter.ManagedTransactionAssistanceFactory] (MSC service thread 1-6) The 'Acquirer' adapter will NOT track transaction state internally. The associated EIS MUST be able to return incomplete transactions and you MUST provide an implementation of CommitRollbackRecoveryCallback#getTransactionsInNeedOfRecovery()!
+07:08:26,273 INFO  [org.jboss.as.connector.deployment] (MSC service thread 1-6) JBAS010406: Registered connection factory java:/maxant/Acquirer
+07:08:26,275 WARNING [ch.maxant.generic_jca_adapter.ManagedTransactionAssistanceFactory] (MSC service thread 1-6) The 'BookingSystem' adapter WILL track transaction state internally. The associated EIS does NOT need to be able to return incomplete transactions and there is NO need to provide an implementation of CommitRollbackRecoveryCallback#getTransactionsInNeedOfRecovery().
+07:08:26,276 INFO  [ch.maxant.generic_jca_adapter.ManagedTransactionAssistanceFactory] (MSC service thread 1-6) Transaction state for 'BookingSystem' will be written in existing directory '/t/wildfly-8.2.0.Final/bin/../standalone/data/bookingsystem-tx-object-store'
+07:08:26,277 INFO  [org.jboss.as.connector.deployment] (MSC service thread 1-6) JBAS010406: Registered connection factory java:/maxant/BookingSystem
+07:08:26,514 INFO  [ch.maxant.generic_jca_adapter.GenericResourceAdapter] (MSC service thread 1-6) starting resource adapter
+07:08:26,536 INFO  [org.jboss.as.connector.deployers.RaXmlDeployer] (MSC service thread 1-6) IJ020002: Deployed: file:/t/wildfly-8.2.0.Final/standalone/deployments/genericconnector-demo-ear.ear/genericconnector-rar-2.0.0-SNAPSHOT.rar/
+07:08:26,567 INFO  [org.jboss.as.connector.deployment] (MSC service thread 1-6) JBAS010401: Bound JCA ConnectionFactory [java:/maxant/LetterWriter]
+07:08:26,584 INFO  [org.jboss.as.connector.deployment] (MSC service thread 1-7) JBAS010401: Bound JCA ConnectionFactory [java:/maxant/Acquirer]
+07:08:26,584 INFO  [org.jboss.as.connector.deployment] (MSC service thread 1-5) JBAS010401: Bound JCA ConnectionFactory [java:/maxant/BookingSystem]
+
+//POSITIVE TEST
+07:18:58,852 INFO  [org.apache.cxf.service.factory.ReflectionServiceFactoryBean] (default task-28) Creating Service {http://acquirer.jca_demo.maxant.ch/}AcquirerWebServiceService from WSDL: file:/w/genericconnector/demo/genericconnector-demo-client/src/main/resources/wsdl/acquirerWebServiceWsdl.xml
+07:18:58,887 INFO  [org.apache.cxf.service.factory.ReflectionServiceFactoryBean] (default task-28) Creating Service {http://bookingsystem.jca_demo.maxant.ch/}BookingSystemWebServiceService from WSDL: file:/w/genericconnector/demo/genericconnector-demo-client/src/main/resources/wsdl/bookingSystemWebServiceWsdl.xml
+07:18:58,907 INFO  [org.apache.cxf.service.factory.ReflectionServiceFactoryBean] (default task-28) Creating Service {http://letterwriter.jca_demo.maxant.ch/}LetterWebServiceService from WSDL: file:/w/genericconnector/demo/genericconnector-demo-client/src/main/resources/wsdl/letterWebServiceWsdl.xml
+07:18:58,923 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceFactoryImpl] (default task-28) allocating connection
+07:18:58,924 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-28) SET TRANSACTION TIMEOUT 300
+07:18:58,925 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-28) START 0/rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAFMAAAABAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAABQMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:18:58,925 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceFactoryImpl] (default task-28) allocating connection
+07:18:58,926 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-28) SET TRANSACTION TIMEOUT 300
+07:18:58,927 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-28) START 0/rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAFYAAAACAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAABQMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:18:58,927 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceFactoryImpl] (default task-28) allocating connection
+07:18:58,928 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-28) SET TRANSACTION TIMEOUT 300
+07:18:58,928 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-28) START 0/rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAFkAAAADAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAABQMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:18:58,931 INFO  [ch.maxant.jca_demo.client.SomeServiceThatBindsResourcesIntoTransaction] (default task-28) wrote to db... 1 with ID 775
+07:18:58,950 INFO  [ch.maxant.jca_demo.acquirer.AcquirerWebService] (default task-29) EXECUTE: reserving money asdf for TXID rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAFMAAAABAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAABQMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:18:58,973 INFO  [ch.maxant.jca_demo.client.SomeServiceThatBindsResourcesIntoTransaction] (default task-28) reserved money...
+07:18:59,009 INFO  [ch.maxant.jca_demo.bookingsystem.BookingSystemWebService] (default task-30) EXECUTE: booking tickets with reference number asdf for TXID rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAFYAAAACAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAABQMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:18:59,035 INFO  [ch.maxant.jca_demo.client.SomeServiceThatBindsResourcesIntoTransaction] (default task-28) reserved ticket...
+07:18:59,089 INFO  [ch.maxant.jca_demo.letterwriter.LetterWebService] (default task-31) SEND LETTER: asdf for TXID rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAFkAAAADAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAABQMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:18:59,103 INFO  [ch.maxant.jca_demo.client.SomeServiceThatBindsResourcesIntoTransaction] (default task-28) created workflow to send letter...
+07:18:59,106 INFO  [ch.maxant.jca_demo.client.SomeServiceThatBindsResourcesIntoTransaction] (default task-28) wrote to db... 1
+07:18:59,110 INFO  [ch.maxant.jca_demo.client.SomeServiceThatBindsResourcesIntoTransaction] (default task-28) returning reserved money asdf/RESERVED tickets: asdf/will write letter at close of business: asdf
+07:18:59,111 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-28) END flags=TMSUCCESS(67108864)/rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAFMAAAABAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAABQMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:18:59,113 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-28) PREPARE rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAFMAAAABAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAABQMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:18:59,114 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-28) END flags=TMSUCCESS(67108864)/rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAFYAAAACAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAABQMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:18:59,114 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-28) PREPARE rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAFYAAAACAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAABQMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:18:59,115 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-28) END flags=TMSUCCESS(67108864)/rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAFkAAAADAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAABQMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:18:59,116 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-28) PREPARE rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAFkAAAADAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAABQMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:18:59,147 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-28) COMMIT false/rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAFMAAAABAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAABQMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:18:59,150 INFO  [org.apache.cxf.service.factory.ReflectionServiceFactoryBean] (default task-28) Creating Service {http://acquirer.jca_demo.maxant.ch/}AcquirerWebServiceService from WSDL: file:/w/genericconnector/demo/genericconnector-demo-client/src/main/resources/wsdl/acquirerWebServiceWsdl.xml
+07:18:59,195 INFO  [ch.maxant.jca_demo.acquirer.AcquirerWebService] (default task-32) COMMIT money: rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAFMAAAABAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAABQMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:18:59,212 INFO  [ch.maxant.generic_jca_adapter.ManagedTransactionAssistance] (default task-28) cleaning up managed connection
+07:18:59,213 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-28) COMMIT false/rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAFYAAAACAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAABQMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:18:59,214 INFO  [org.apache.cxf.service.factory.ReflectionServiceFactoryBean] (default task-28) Creating Service {http://bookingsystem.jca_demo.maxant.ch/}BookingSystemWebServiceService from WSDL: file:/w/genericconnector/demo/genericconnector-demo-client/src/main/resources/wsdl/bookingSystemWebServiceWsdl.xml
+07:18:59,237 INFO  [ch.maxant.jca_demo.bookingsystem.BookingSystemWebService] (default task-33) BOOK tickets: rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAFYAAAACAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAABQMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:18:59,249 INFO  [ch.maxant.generic_jca_adapter.ManagedTransactionAssistance] (default task-28) cleaning up managed connection
+07:18:59,249 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-28) COMMIT false/rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAFkAAAADAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAABQMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:18:59,250 INFO  [ch.maxant.generic_jca_adapter.ManagedTransactionAssistance] (default task-28) cleaning up managed connection
+07:18:59,267 INFO  [ch.maxant.generic_jca_adapter.ManagedTransactionAssistance] (default task-28) cleaning up managed connection
+07:18:59,268 INFO  [ch.maxant.generic_jca_adapter.ManagedTransactionAssistance] (default task-28) cleaning up managed connection
+07:18:59,268 INFO  [ch.maxant.generic_jca_adapter.ManagedTransactionAssistance] (default task-28) cleaning up managed connection
+07:18:59,269 INFO  [ch.maxant.jca_demo.client.ResourceServlet] (default task-28) servlet got: reserved money asdf/RESERVED tickets: asdf/will write letter at close of business: asdf
+
+//FAILDB
+07:21:42,458 INFO  [org.apache.cxf.service.factory.ReflectionServiceFactoryBean] (default task-49) Creating Service {http://acquirer.jca_demo.maxant.ch/}AcquirerWebServiceService from WSDL: file:/w/genericconnector/demo/genericconnector-demo-client/src/main/resources/wsdl/acquirerWebServiceWsdl.xml
+07:21:42,479 INFO  [org.apache.cxf.service.factory.ReflectionServiceFactoryBean] (default task-49) Creating Service {http://bookingsystem.jca_demo.maxant.ch/}BookingSystemWebServiceService from WSDL: file:/w/genericconnector/demo/genericconnector-demo-client/src/main/resources/wsdl/bookingSystemWebServiceWsdl.xml
+07:21:42,496 INFO  [org.apache.cxf.service.factory.ReflectionServiceFactoryBean] (default task-49) Creating Service {http://letterwriter.jca_demo.maxant.ch/}LetterWebServiceService from WSDL: file:/w/genericconnector/demo/genericconnector-demo-client/src/main/resources/wsdl/letterWebServiceWsdl.xml
+07:21:42,513 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceFactoryImpl] (default task-49) allocating connection
+07:21:42,514 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-49) SET TRANSACTION TIMEOUT 300
+07:21:42,515 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-49) START 0/rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAJMAAAABAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAACQMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:21:42,515 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceFactoryImpl] (default task-49) allocating connection
+07:21:42,516 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-49) SET TRANSACTION TIMEOUT 300
+07:21:42,516 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-49) START 0/rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAJYAAAACAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAACQMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:21:42,516 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceFactoryImpl] (default task-49) allocating connection
+07:21:42,517 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-49) SET TRANSACTION TIMEOUT 300
+07:21:42,518 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-49) START 0/rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAJkAAAADAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAACQMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:21:42,524 INFO  [ch.maxant.jca_demo.client.SomeServiceThatBindsResourcesIntoTransaction] (default task-49) wrote to db... 1 with ID 778
+07:21:42,543 INFO  [ch.maxant.jca_demo.acquirer.AcquirerWebService] (default task-50) EXECUTE: reserving money FAILDB for TXID rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAJMAAAABAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAACQMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:21:42,558 INFO  [ch.maxant.jca_demo.client.SomeServiceThatBindsResourcesIntoTransaction] (default task-49) reserved money...
+07:21:42,573 INFO  [ch.maxant.jca_demo.bookingsystem.BookingSystemWebService] (default task-51) EXECUTE: booking tickets with reference number FAILDB for TXID rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAJYAAAACAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAACQMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:21:42,585 INFO  [ch.maxant.jca_demo.client.SomeServiceThatBindsResourcesIntoTransaction] (default task-49) reserved ticket...
+07:21:42,621 INFO  [ch.maxant.jca_demo.letterwriter.LetterWebService] (default task-52) SEND LETTER: FAILDB for TXID rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAJkAAAADAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAACQMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:21:42,636 INFO  [ch.maxant.jca_demo.client.SomeServiceThatBindsResourcesIntoTransaction] (default task-49) created workflow to send letter...
+07:21:42,639 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-49) END flags=TMFAIL(536870912)/rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAJMAAAABAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAACQMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:21:42,640 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-49) ROLLBACK rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAJMAAAABAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAACQMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:21:42,642 INFO  [org.apache.cxf.service.factory.ReflectionServiceFactoryBean] (default task-49) Creating Service {http://acquirer.jca_demo.maxant.ch/}AcquirerWebServiceService from WSDL: file:/w/genericconnector/demo/genericconnector-demo-client/src/main/resources/wsdl/acquirerWebServiceWsdl.xml
+07:21:42,668 INFO  [ch.maxant.jca_demo.acquirer.AcquirerWebService] (default task-53) rollback money: rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAJMAAAABAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAACQMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:21:42,675 INFO  [ch.maxant.generic_jca_adapter.ManagedTransactionAssistance] (default task-49) cleaning up managed connection
+07:21:42,676 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-49) END flags=TMFAIL(536870912)/rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAJYAAAACAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAACQMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:21:42,676 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-49) ROLLBACK rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAJYAAAACAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAACQMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:21:42,677 INFO  [org.apache.cxf.service.factory.ReflectionServiceFactoryBean] (default task-49) Creating Service {http://bookingsystem.jca_demo.maxant.ch/}BookingSystemWebServiceService from WSDL: file:/w/genericconnector/demo/genericconnector-demo-client/src/main/resources/wsdl/bookingSystemWebServiceWsdl.xml
+07:21:42,696 INFO  [ch.maxant.jca_demo.bookingsystem.BookingSystemWebService] (default task-54) CANCEL tickets: rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAJYAAAACAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAACQMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:21:42,706 INFO  [ch.maxant.generic_jca_adapter.ManagedTransactionAssistance] (default task-49) cleaning up managed connection
+07:21:42,709 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-49) END flags=TMFAIL(536870912)/rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAJkAAAADAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAACQMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:21:42,709 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-49) ROLLBACK rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAJkAAAADAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAACQMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:21:42,712 INFO  [org.apache.cxf.service.factory.ReflectionServiceFactoryBean] (default task-49) Creating Service {http://letterwriter.jca_demo.maxant.ch/}LetterWebServiceService from WSDL: file:/w/genericconnector/demo/genericconnector-demo-client/src/main/resources/wsdl/letterWebServiceWsdl.xml
+07:21:42,726 INFO  [ch.maxant.jca_demo.letterwriter.LetterWebService] (default task-55) ROLLBACK LETTER: rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAJkAAAADAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAACQMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:21:42,735 INFO  [ch.maxant.generic_jca_adapter.ManagedTransactionAssistance] (default task-49) cleaning up managed connection
+07:21:42,744 INFO  [ch.maxant.generic_jca_adapter.ManagedTransactionAssistance] (default task-49) cleaning up managed connection
+07:21:42,745 INFO  [ch.maxant.generic_jca_adapter.ManagedTransactionAssistance] (default task-49) cleaning up managed connection
+07:21:42,745 INFO  [ch.maxant.generic_jca_adapter.ManagedTransactionAssistance] (default task-49) cleaning up managed connection
+07:21:42,746 ERROR [io.undertow.request] (default task-49) UT005023: Exception handling request to /genericconnectordemo/ResourceServlet: javax.servlet.ServletException: com.mysql.jdbc.exceptions.jdbc4.MySQLIntegrityConstraintViolationException: Cannot add or update a child row: a foreign key constraint fails (`temp`.`address`, CONSTRAINT `address_ibfk_1` FOREIGN KEY (`person_fk`) REFERENCES `person` (`id`))
+    at ch.maxant.jca_demo.client.ResourceServlet.doGet(ResourceServlet.java:48) [classes:]
+...
+Caused by: com.mysql.jdbc.exceptions.jdbc4.MySQLIntegrityConstraintViolationException: Cannot add or update a child row: a foreign key constraint fails (`temp`.`address`, CONSTRAINT `address_ibfk_1` FOREIGN KEY (`person_fk`) REFERENCES `person` (`id`))
+...
+    at ch.maxant.jca_demo.client.SomeServiceThatBindsResourcesIntoTransaction.insertAnotherRecordIntoDatabase(SomeServiceThatBindsResourcesIntoTransaction.java:134) [classes:]
+    at ch.maxant.jca_demo.client.SomeServiceThatBindsResourcesIntoTransaction.doSomethingInvolvingSeveralResources(SomeServiceThatBindsResourcesIntoTransaction.java:110) [classes:]
+...
+    at ch.maxant.jca_demo.client.SomeServiceThatBindsResourcesIntoTransaction$$$view6.doSomethingInvolvingSeveralResources(Unknown Source) [classes:]
+    at ch.maxant.jca_demo.client.ResourceServlet.doGet(ResourceServlet.java:44) [classes:]
+    ... 28 more
+
+
+
+//FAILWSLetterWriter
+07:28:51,122 INFO  [org.apache.cxf.service.factory.ReflectionServiceFactoryBean] (default task-2) Creating Service {http://acquirer.jca_demo.maxant.ch/}AcquirerWebServiceService from WSDL: file:/w/genericconnector/demo/genericconnector-demo-client/src/main/resources/wsdl/acquirerWebServiceWsdl.xml
+07:28:51,183 INFO  [org.apache.cxf.service.factory.ReflectionServiceFactoryBean] (default task-2) Creating Service {http://bookingsystem.jca_demo.maxant.ch/}BookingSystemWebServiceService from WSDL: file:/w/genericconnector/demo/genericconnector-demo-client/src/main/resources/wsdl/bookingSystemWebServiceWsdl.xml
+07:28:51,221 INFO  [org.apache.cxf.service.factory.ReflectionServiceFactoryBean] (default task-2) Creating Service {http://letterwriter.jca_demo.maxant.ch/}LetterWebServiceService from WSDL: file:/w/genericconnector/demo/genericconnector-demo-client/src/main/resources/wsdl/letterWebServiceWsdl.xml
+07:28:51,242 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceFactoryImpl] (default task-2) allocating connection
+07:28:51,243 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-2) SET TRANSACTION TIMEOUT 300
+07:28:51,243 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-2) START 0/rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAMsAAAABAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAADIMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:28:51,243 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceFactoryImpl] (default task-2) allocating connection
+07:28:51,244 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-2) SET TRANSACTION TIMEOUT 300
+07:28:51,244 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-2) START 0/rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAM4AAAACAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAADIMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:28:51,244 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceFactoryImpl] (default task-2) allocating connection
+07:28:51,245 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-2) SET TRANSACTION TIMEOUT 300
+07:28:51,245 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-2) START 0/rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAANEAAAADAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAADIMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:28:51,248 INFO  [ch.maxant.jca_demo.client.SomeServiceThatBindsResourcesIntoTransaction] (default task-2) wrote to db... 1 with ID 780
+07:28:51,268 INFO  [ch.maxant.jca_demo.acquirer.AcquirerWebService] (default task-3) EXECUTE: reserving money FAILWSLetterWriter for TXID rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAMsAAAABAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAADIMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:28:51,282 INFO  [ch.maxant.jca_demo.client.SomeServiceThatBindsResourcesIntoTransaction] (default task-2) reserved money...
+07:28:51,292 INFO  [ch.maxant.jca_demo.bookingsystem.BookingSystemWebService] (default task-4) EXECUTE: booking tickets with reference number FAILWSLetterWriter for TXID rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAM4AAAACAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAADIMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:28:51,308 INFO  [ch.maxant.jca_demo.client.SomeServiceThatBindsResourcesIntoTransaction] (default task-2) reserved ticket...
+07:28:51,325 INFO  [ch.maxant.jca_demo.letterwriter.LetterWebService] (default task-6) SEND LETTER: FAILWSLetterWriter for TXID rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAANEAAAADAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAADIMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:28:51,327 ERROR [org.jboss.as.webservices.invocation.InvocationHandlerJAXWS] (default task-6) JBAS015594: Method invocation failed with exception: failed for test purposes: java.lang.Exception: failed for test purposes
+    at ch.maxant.jca_demo.letterwriter.LetterWebService.writeLetter(LetterWebService.java:35) [classes:]
+...
+07:28:51,362 INFO  [org.apache.cxf.phase.PhaseInterceptorChain] (default task-6) Application {http://letterwriter.jca_demo.maxant.ch/}LetterWebServiceService#{http://letterwriter.jca_demo.maxant.ch/}writeLetter has thrown exception, unwinding now: java.lang.Exception: failed for test purposes
+07:28:51,376 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-2) END flags=TMSUCCESS(67108864)/rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAMsAAAABAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAADIMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:28:51,378 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-2) PREPARE rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAMsAAAABAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAADIMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:28:51,379 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-2) END flags=TMSUCCESS(67108864)/rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAM4AAAACAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAADIMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:28:51,382 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-2) PREPARE rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAM4AAAACAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAADIMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:28:51,383 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-2) END flags=TMSUCCESS(67108864)/rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAANEAAAADAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAADIMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:28:51,384 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-2) PREPARE rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAANEAAAADAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAADIMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:28:51,385 WARN  [com.arjuna.ats.jta] (default task-2) ARJUNA016041: prepare on < formatId=131077, gtrid_length=29, bqual_length=36, tx_uid=0:ffffc0a87a01:-7a027bf3:55a347c6:c8, node_name=1, branch_uid=0:ffffc0a87a01:-7a027bf3:55a347c6:d1, subordinatenodename=null, eis_name=java:/maxant/LetterWriter > (XAResourceWrapperImpl@6ef018d6[xaResource=ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource@1a58df2e pad=false overrideRmValue=null productName=maxant Generic Resource Adapter productVersion=2.0 jndiName=java:/maxant/LetterWriter]) failed with exception XAException.XA_RBROLLBACK: javax.transaction.xa.XAException
+    at ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource.prepare(TransactionAssistanceXAResource.java:266) [genericconnector-impl-2.0.0-SNAPSHOT.jar:]
+...
+    at ch.maxant.jca_demo.client.SomeServiceThatBindsResourcesIntoTransaction$$$view6.doSomethingInvolvingSeveralResources(Unknown Source) [classes:]
+    at ch.maxant.jca_demo.client.ResourceServlet.doGet(ResourceServlet.java:44) [classes:]
+...
+07:28:51,404 WARN  [com.arjuna.ats.arjuna] (default task-2) ARJUNA012073: BasicAction.End() - prepare phase of action-id 0:ffffc0a87a01:-7a027bf3:55a347c6:c8 failed.
+07:28:51,405 WARN  [com.arjuna.ats.arjuna] (default task-2) ARJUNA012075: Action Aborting
+07:28:51,405 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-2) ROLLBACK rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAMsAAAABAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAADIMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:28:51,408 INFO  [org.apache.cxf.service.factory.ReflectionServiceFactoryBean] (default task-2) Creating Service {http://acquirer.jca_demo.maxant.ch/}AcquirerWebServiceService from WSDL: file:/w/genericconnector/demo/genericconnector-demo-client/src/main/resources/wsdl/acquirerWebServiceWsdl.xml
+07:28:51,433 INFO  [ch.maxant.jca_demo.acquirer.AcquirerWebService] (default task-7) rollback money: rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAMsAAAABAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAADIMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:28:51,442 INFO  [ch.maxant.generic_jca_adapter.ManagedTransactionAssistance] (default task-2) cleaning up managed connection
+07:28:51,443 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-2) ROLLBACK rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAM4AAAACAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAADIMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:28:51,446 INFO  [org.apache.cxf.service.factory.ReflectionServiceFactoryBean] (default task-2) Creating Service {http://bookingsystem.jca_demo.maxant.ch/}BookingSystemWebServiceService from WSDL: file:/w/genericconnector/demo/genericconnector-demo-client/src/main/resources/wsdl/bookingSystemWebServiceWsdl.xml
+07:28:51,476 INFO  [ch.maxant.jca_demo.bookingsystem.BookingSystemWebService] (default task-8) CANCEL tickets: rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAM4AAAACAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAADIMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:28:51,488 INFO  [ch.maxant.generic_jca_adapter.ManagedTransactionAssistance] (default task-2) cleaning up managed connection
+07:28:51,489 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-2) ROLLBACK rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAANEAAAADAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAADIMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:28:51,492 INFO  [org.apache.cxf.service.factory.ReflectionServiceFactoryBean] (default task-2) Creating Service {http://letterwriter.jca_demo.maxant.ch/}LetterWebServiceService from WSDL: file:/w/genericconnector/demo/genericconnector-demo-client/src/main/resources/wsdl/letterWebServiceWsdl.xml
+07:28:51,511 INFO  [ch.maxant.jca_demo.letterwriter.LetterWebService] (default task-9) ROLLBACK LETTER: rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAANEAAAADAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAADIMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:28:51,523 INFO  [ch.maxant.generic_jca_adapter.ManagedTransactionAssistance] (default task-2) cleaning up managed connection
+07:28:51,533 INFO  [ch.maxant.generic_jca_adapter.ManagedTransactionAssistance] (default task-2) cleaning up managed connection
+07:28:51,533 INFO  [ch.maxant.generic_jca_adapter.ManagedTransactionAssistance] (default task-2) cleaning up managed connection
+07:28:51,533 INFO  [ch.maxant.generic_jca_adapter.ManagedTransactionAssistance] (default task-2) cleaning up managed connection
+07:28:51,534 ERROR [org.jboss.as.ejb3.invocation] (default task-2) JBAS014134: EJB Invocation failed on component SomeServiceThatBindsResourcesIntoTransaction for method public java.lang.String ch.maxant.jca_demo.client.SomeServiceThatBindsResourcesIntoTransaction.doSomethingInvolvingSeveralResources(java.lang.String) throws java.lang.Exception: javax.ejb.EJBTransactionRolledbackException: Transaction rolled back
+...
+    at ch.maxant.jca_demo.client.SomeServiceThatBindsResourcesIntoTransaction$$$view6.doSomethingInvolvingSeveralResources(Unknown Source) [classes:]
+    at ch.maxant.jca_demo.client.ResourceServlet.doGet(ResourceServlet.java:44) [classes:]
+...
+Caused by: javax.transaction.RollbackException: ARJUNA016053: Could not commit transaction.
+...
+07:28:51,551 ERROR [io.undertow.request] (default task-2) UT005023: Exception handling request to /genericconnectordemo/ResourceServlet: javax.servlet.ServletException: javax.ejb.EJBTransactionRolledbackException: Transaction rolled back
+    at ch.maxant.jca_demo.client.ResourceServlet.doGet(ResourceServlet.java:48) [classes:]
+...
+Caused by: javax.ejb.EJBTransactionRolledbackException: Transaction rolled back
+...
+    at ch.maxant.jca_demo.client.SomeServiceThatBindsResourcesIntoTransaction$$$view6.doSomethingInvolvingSeveralResources(Unknown Source) [classes:]
+    at ch.maxant.jca_demo.client.ResourceServlet.doGet(ResourceServlet.java:44) [classes:]
+    ... 28 more
+Caused by: javax.transaction.RollbackException: ARJUNA016053: Could not commit transaction.
+...
+
+
+
+
+
+RECOVERY NOTHING TO DO
+07:38:44,456 INFO  [ch.maxant.generic_jca_adapter.ManagedTransactionAssistance] (Periodic Recovery) cleaning up managed connection
+07:38:44,457 INFO  [ch.maxant.generic_jca_adapter.ManagedTransactionAssistance] (Periodic Recovery) cleaning up managed connection
+07:38:44,457 INFO  [ch.maxant.generic_jca_adapter.ManagedTransactionAssistance] (Periodic Recovery) cleaning up managed connection
+07:38:44,458 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (Periodic Recovery) RECOVER TMSTARTRSCAN
+07:38:44,463 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (Periodic Recovery) RECOVER TMSTARTRSCAN
+07:38:44,469 INFO  [org.apache.cxf.service.factory.ReflectionServiceFactoryBean] (Periodic Recovery) Creating Service {http://acquirer.jca_demo.maxant.ch/}AcquirerWebServiceService from WSDL: file:/w/genericconnector/demo/genericconnector-demo-client/src/main/resources/wsdl/acquirerWebServiceWsdl.xml
+07:38:44,521 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (Periodic Recovery) RECOVER TMSTARTRSCAN
+07:38:54,558 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (Periodic Recovery) RECOVER TMENDRSCAN
+07:38:54,558 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (Periodic Recovery) RECOVER TMENDRSCAN
+07:38:54,559 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (Periodic Recovery) RECOVER TMENDRSCAN
+
+
+
+
+
+
+
+
+
+
+
+
+TURN OFF DB BEFORE COMMIT
+07:41:47,652 INFO  [org.apache.cxf.service.factory.ReflectionServiceFactoryBean] (default task-37) Creating Service {http://acquirer.jca_demo.maxant.ch/}AcquirerWebServiceService from WSDL: file:/w/genericconnector/demo/genericconnector-demo-client/src/main/resources/wsdl/acquirerWebServiceWsdl.xml
+07:41:47,676 INFO  [org.apache.cxf.service.factory.ReflectionServiceFactoryBean] (default task-37) Creating Service {http://bookingsystem.jca_demo.maxant.ch/}BookingSystemWebServiceService from WSDL: file:/w/genericconnector/demo/genericconnector-demo-client/src/main/resources/wsdl/bookingSystemWebServiceWsdl.xml
+07:41:47,696 INFO  [org.apache.cxf.service.factory.ReflectionServiceFactoryBean] (default task-37) Creating Service {http://letterwriter.jca_demo.maxant.ch/}LetterWebServiceService from WSDL: file:/w/genericconnector/demo/genericconnector-demo-client/src/main/resources/wsdl/letterWebServiceWsdl.xml
+07:41:47,703 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceFactoryImpl] (default task-37) allocating connection
+07:41:47,703 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-37) SET TRANSACTION TIMEOUT 300
+07:41:47,704 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-37) START 0/rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAUMAAAABAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAAFAMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:41:47,704 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceFactoryImpl] (default task-37) allocating connection
+07:41:47,704 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-37) SET TRANSACTION TIMEOUT 300
+07:41:47,704 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-37) START 0/rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAUYAAAACAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAAFAMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:41:47,704 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceFactoryImpl] (default task-37) allocating connection
+07:41:47,705 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-37) SET TRANSACTION TIMEOUT 300
+07:41:47,705 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-37) START 0/rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAUkAAAADAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAAFAMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:41:47,718 INFO  [ch.maxant.jca_demo.client.SomeServiceThatBindsResourcesIntoTransaction] (default task-37) wrote to db... 1 with ID 1
+07:41:47,736 INFO  [ch.maxant.jca_demo.acquirer.AcquirerWebService] (default task-38) EXECUTE: reserving money asdf for TXID rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAUMAAAABAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAAFAMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:41:47,746 INFO  [ch.maxant.jca_demo.client.SomeServiceThatBindsResourcesIntoTransaction] (default task-37) reserved money...
+07:41:47,757 INFO  [ch.maxant.jca_demo.bookingsystem.BookingSystemWebService] (default task-39) EXECUTE: booking tickets with reference number asdf for TXID rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAUYAAAACAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAAFAMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:41:47,766 INFO  [ch.maxant.jca_demo.client.SomeServiceThatBindsResourcesIntoTransaction] (default task-37) reserved ticket...
+07:41:47,777 INFO  [ch.maxant.jca_demo.letterwriter.LetterWebService] (default task-40) SEND LETTER: asdf for TXID rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAUkAAAADAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAAFAMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:41:47,783 INFO  [ch.maxant.jca_demo.client.SomeServiceThatBindsResourcesIntoTransaction] (default task-37) created workflow to send letter...
+07:41:47,784 INFO  [ch.maxant.jca_demo.client.SomeServiceThatBindsResourcesIntoTransaction] (default task-37) wrote to db... 1
+07:41:47,785 INFO  [ch.maxant.jca_demo.client.SomeServiceThatBindsResourcesIntoTransaction] (default task-37) returning reserved money asdf/RESERVED tickets: asdf/will write letter at close of business: asdf
+07:41:47,785 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-37) END flags=TMSUCCESS(67108864)/rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAUMAAAABAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAAFAMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:41:47,786 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-37) PREPARE rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAUMAAAABAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAAFAMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:41:47,786 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-37) END flags=TMSUCCESS(67108864)/rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAUYAAAACAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAAFAMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:41:47,786 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-37) PREPARE rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAUYAAAACAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAAFAMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:41:47,786 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-37) END flags=TMSUCCESS(67108864)/rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAUkAAAADAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAAFAMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:41:47,786 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-37) PREPARE rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAUkAAAADAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAAFAMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:41:47,806 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-37) COMMIT false/rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAUMAAAABAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAAFAMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:42:08,291 INFO  [org.apache.cxf.service.factory.ReflectionServiceFactoryBean] (default task-37) Creating Service {http://acquirer.jca_demo.maxant.ch/}AcquirerWebServiceService from WSDL: file:/w/genericconnector/demo/genericconnector-demo-client/src/main/resources/wsdl/acquirerWebServiceWsdl.xml
+07:42:08,336 INFO  [ch.maxant.jca_demo.acquirer.AcquirerWebService] (default task-35) COMMIT money: rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAUMAAAABAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAAFAMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:42:08,350 INFO  [ch.maxant.generic_jca_adapter.ManagedTransactionAssistance] (default task-37) cleaning up managed connection
+07:42:08,350 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-37) COMMIT false/rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAUYAAAACAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAAFAMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:42:09,025 INFO  [org.apache.cxf.service.factory.ReflectionServiceFactoryBean] (default task-37) Creating Service {http://bookingsystem.jca_demo.maxant.ch/}BookingSystemWebServiceService from WSDL: file:/w/genericconnector/demo/genericconnector-demo-client/src/main/resources/wsdl/bookingSystemWebServiceWsdl.xml
+07:42:09,061 INFO  [ch.maxant.jca_demo.bookingsystem.BookingSystemWebService] (default task-41) BOOK tickets: rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAUYAAAACAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAAFAMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:42:09,082 INFO  [ch.maxant.generic_jca_adapter.ManagedTransactionAssistance] (default task-37) cleaning up managed connection
+07:42:09,083 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (default task-37) COMMIT false/rO0ABXVyABNbTGphdmEubGFuZy5PYmplY3Q7kM5YnxBzKWwCAAB4cAAAAAN1cgACW0Ks8xf4BghU4AIAAHhwAAAAJAAAAAAAAAAAAAD//8CoegGF/YQNVaNHxgAAAUkAAAADAAAAAHVxAH4AAgAAAB0AAAAAAAAAAAAA///AqHoBhf2EDVWjR8YAAAFAMXNyABFqYXZhLmxhbmcuSW50ZWdlchLioKT3gYc4AgABSQAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAgAF
+07:42:09,084 INFO  [ch.maxant.generic_jca_adapter.ManagedTransactionAssistance] (default task-37) cleaning up managed connection
+07:42:09,086 WARN  [com.arjuna.ats.jta] (default task-37) ARJUNA016036: commit on < formatId=131077, gtrid_length=29, bqual_length=36, tx_uid=0:ffffc0a87a01:-7a027bf3:55a347c6:140, node_name=1, branch_uid=0:ffffc0a87a01:-7a027bf3:55a347c6:14c, subordinatenodename=null, eis_name=unknown eis name > (org.jboss.jca.adapters.jdbc.xa.XAManagedConnection@5279af83) failed with exception $ARJUNA016099: Unknown error code:0: com.mysql.jdbc.jdbc2.optional.MysqlXAException: Communications link failure
+
+The last packet successfully received from the server was 21,290 milliseconds ago.  The last packet sent successfully to the server was 1 milliseconds ago.
+    at com.mysql.jdbc.jdbc2.optional.MysqlXAConnection.mapXAExceptionFromSQLException(MysqlXAConnection.java:605)
+    at com.mysql.jdbc.jdbc2.optional.MysqlXAConnection.dispatchCommand(MysqlXAConnection.java:584)
+    at com.mysql.jdbc.jdbc2.optional.MysqlXAConnection.commit(MysqlXAConnection.java:560)
+    at org.jboss.jca.adapters.jdbc.xa.XAManagedConnection.commit(XAManagedConnection.java:338)
+    at com.arjuna.ats.internal.jta.resources.arjunacore.XAResourceRecord.topLevelCommit(XAResourceRecord.java:461)
+    at com.arjuna.ats.arjuna.coordinator.BasicAction.doCommit(BasicAction.java:2810)
+    at com.arjuna.ats.arjuna.coordinator.BasicAction.doCommit(BasicAction.java:2726)
+    at com.arjuna.ats.arjuna.coordinator.BasicAction.phase2Commit(BasicAction.java:1820)
+    at com.arjuna.ats.arjuna.coordinator.BasicAction.End(BasicAction.java:1504)
+    at com.arjuna.ats.arjuna.coordinator.TwoPhaseCoordinator.end(TwoPhaseCoordinator.java:96)
+    at com.arjuna.ats.arjuna.AtomicAction.commit(AtomicAction.java:162)
+    at com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionImple.commitAndDisassociate(TransactionImple.java:1166)
+    at com.arjuna.ats.internal.jta.transaction.arjunacore.BaseTransaction.commit(BaseTransaction.java:126)
+    at com.arjuna.ats.jbossatx.BaseTransactionManagerDelegate.commit(BaseTransactionManagerDelegate.java:75)
+    at org.jboss.as.ejb3.tx.CMTTxInterceptor.endTransaction(CMTTxInterceptor.java:93) [wildfly-ejb3-8.2.0.Final.jar:8.2.0.Final]
+    at org.jboss.as.ejb3.tx.CMTTxInterceptor.invokeInOurTx(CMTTxInterceptor.java:277) [wildfly-ejb3-8.2.0.Final.jar:8.2.0.Final]
+    at org.jboss.as.ejb3.tx.CMTTxInterceptor.required(CMTTxInterceptor.java:340) [wildfly-ejb3-8.2.0.Final.jar:8.2.0.Final]
+...
+    at ch.maxant.jca_demo.client.SomeServiceThatBindsResourcesIntoTransaction$$$view6.doSomethingInvolvingSeveralResources(Unknown Source) [classes:]
+    at ch.maxant.jca_demo.client.ResourceServlet.doGet(ResourceServlet.java:44) [classes:]
+...
+07:42:09,122 INFO  [ch.maxant.generic_jca_adapter.ManagedTransactionAssistance] (default task-37) cleaning up managed connection
+07:42:09,122 INFO  [ch.maxant.generic_jca_adapter.ManagedTransactionAssistance] (default task-37) cleaning up managed connection
+07:42:09,122 INFO  [ch.maxant.generic_jca_adapter.ManagedTransactionAssistance] (default task-37) cleaning up managed connection
+07:42:09,123 ERROR [org.jboss.as.ejb3.invocation] (default task-37) JBAS014134: EJB Invocation failed on component SomeServiceThatBindsResourcesIntoTransaction for method public java.lang.String ch.maxant.jca_demo.client.SomeServiceThatBindsResourcesIntoTransaction.doSomethingInvolvingSeveralResources(java.lang.String) throws java.lang.Exception: javax.ejb.EJBException: javax.transaction.HeuristicMixedException
+    at org.jboss.as.ejb3.tx.CMTTxInterceptor.handleEndTransactionException(CMTTxInterceptor.java:140) [wildfly-ejb3-8.2.0.Final.jar:8.2.0.Final]
+    at org.jboss.as.ejb3.tx.CMTTxInterceptor.endTransaction(CMTTxInterceptor.java:121) [wildfly-ejb3-8.2.0.Final.jar:8.2.0.Final]
+    at org.jboss.as.ejb3.tx.CMTTxInterceptor.invokeInOurTx(CMTTxInterceptor.java:277) [wildfly-ejb3-8.2.0.Final.jar:8.2.0.Final]
+    at org.jboss.as.ejb3.tx.CMTTxInterceptor.required(CMTTxInterceptor.java:340) [wildfly-ejb3-8.2.0.Final.jar:8.2.0.Final]
+    at org.jboss.as.ejb3.tx.CMTTxInterceptor.processInvocation(CMTTxInterceptor.java:239) [wildfly-ejb3-8.2.0.Final.jar:8.2.0.Final]
+...
+    at ch.maxant.jca_demo.client.SomeServiceThatBindsResourcesIntoTransaction$$$view6.doSomethingInvolvingSeveralResources(Unknown Source) [classes:]
+    at ch.maxant.jca_demo.client.ResourceServlet.doGet(ResourceServlet.java:44) [classes:]
+...
+Caused by: javax.transaction.HeuristicMixedException
+    at com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionImple.commitAndDisassociate(TransactionImple.java:1174)
+    at com.arjuna.ats.internal.jta.transaction.arjunacore.BaseTransaction.commit(BaseTransaction.java:126)
+    at com.arjuna.ats.jbossatx.BaseTransactionManagerDelegate.commit(BaseTransactionManagerDelegate.java:75)
+    at org.jboss.as.ejb3.tx.CMTTxInterceptor.endTransaction(CMTTxInterceptor.java:93) [wildfly-ejb3-8.2.0.Final.jar:8.2.0.Final]
+    ... 63 more
+07:42:09,144 ERROR [io.undertow.request] (default task-37) UT005023: Exception handling request to /genericconnectordemo/ResourceServlet: javax.servlet.ServletException: javax.ejb.EJBException: javax.transaction.HeuristicMixedException
+    at ch.maxant.jca_demo.client.ResourceServlet.doGet(ResourceServlet.java:48) [classes:]
+...
+Caused by: javax.ejb.EJBException: javax.transaction.HeuristicMixedException
+...
+    at ch.maxant.jca_demo.client.SomeServiceThatBindsResourcesIntoTransaction$$$view6.doSomethingInvolvingSeveralResources(Unknown Source) [classes:]
+    at ch.maxant.jca_demo.client.ResourceServlet.doGet(ResourceServlet.java:44) [classes:]
+    ... 28 more
+Caused by: javax.transaction.HeuristicMixedException
+    at com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionImple.commitAndDisassociate(TransactionImple.java:1174)
+    at com.arjuna.ats.internal.jta.transaction.arjunacore.BaseTransaction.commit(BaseTransaction.java:126)
+    at com.arjuna.ats.jbossatx.BaseTransactionManagerDelegate.commit(BaseTransactionManagerDelegate.java:75)
+    at org.jboss.as.ejb3.tx.CMTTxInterceptor.endTransaction(CMTTxInterceptor.java:93) [wildfly-ejb3-8.2.0.Final.jar:8.2.0.Final]
+    ... 63 more
+
+
+
+
+
+
+
+RECOVERY AFTER DB SHUTDOWN
+07:43:04,652 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (Periodic Recovery) RECOVER TMSTARTRSCAN
+07:43:04,652 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (Periodic Recovery) RECOVER TMSTARTRSCAN
+07:43:04,654 INFO  [org.apache.cxf.service.factory.ReflectionServiceFactoryBean] (Periodic Recovery) Creating Service {http://acquirer.jca_demo.maxant.ch/}AcquirerWebServiceService from WSDL: file:/w/genericconnector/demo/genericconnector-demo-client/src/main/resources/wsdl/acquirerWebServiceWsdl.xml
+07:43:04,685 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (Periodic Recovery) RECOVER TMSTARTRSCAN
+07:43:14,693 WARN  [com.arjuna.ats.jta] (Periodic Recovery) ARJUNA016037: Could not find new XAResource to use for recovering non-serializable XAResource XAResourceRecord < resource:null, txid:< formatId=131077, gtrid_length=29, bqual_length=36, tx_uid=0:ffffc0a87a01:-7a027bf3:55a347c6:140, node_name=1, branch_uid=0:ffffc0a87a01:-7a027bf3:55a347c6:14c, subordinatenodename=null, eis_name=unknown eis name >, heuristic: TwoPhaseOutcome.FINISH_OK com.arjuna.ats.internal.jta.resources.arjunacore.XAResourceRecord@5ad5d1d8 >
+07:43:14,707 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (Periodic Recovery) RECOVER TMENDRSCAN
+07:43:14,708 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (Periodic Recovery) RECOVER TMENDRSCAN
+07:43:14,708 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (Periodic Recovery) RECOVER TMENDRSCAN
+07:45:14,759 INFO  [ch.maxant.generic_jca_adapter.ManagedTransactionAssistance] (Periodic Recovery) cleaning up managed connection
+07:45:14,759 INFO  [ch.maxant.generic_jca_adapter.ManagedTransactionAssistance] (Periodic Recovery) cleaning up managed connection
+07:45:14,760 INFO  [ch.maxant.generic_jca_adapter.ManagedTransactionAssistance] (Periodic Recovery) cleaning up managed connection
+07:45:14,761 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (Periodic Recovery) RECOVER TMSTARTRSCAN
+07:45:14,762 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (Periodic Recovery) RECOVER TMSTARTRSCAN
+07:45:14,776 INFO  [org.apache.cxf.service.factory.ReflectionServiceFactoryBean] (Periodic Recovery) Creating Service {http://acquirer.jca_demo.maxant.ch/}AcquirerWebServiceService from WSDL: file:/w/genericconnector/demo/genericconnector-demo-client/src/main/resources/wsdl/acquirerWebServiceWsdl.xml
+07:45:14,844 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (Periodic Recovery) RECOVER TMSTARTRSCAN
+07:45:24,852 WARN  [com.arjuna.ats.jta] (Periodic Recovery) ARJUNA016037: Could not find new XAResource to use for recovering non-serializable XAResource XAResourceRecord < resource:null, txid:< formatId=131077, gtrid_length=29, bqual_length=36, tx_uid=0:ffffc0a87a01:-7a027bf3:55a347c6:140, node_name=1, branch_uid=0:ffffc0a87a01:-7a027bf3:55a347c6:14c, subordinatenodename=null, eis_name=unknown eis name >, heuristic: TwoPhaseOutcome.FINISH_OK com.arjuna.ats.internal.jta.resources.arjunacore.XAResourceRecord@706fb1a8 >
+07:45:24,871 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (Periodic Recovery) RECOVER TMENDRSCAN
+07:45:24,872 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (Periodic Recovery) RECOVER TMENDRSCAN
+07:45:24,872 INFO  [ch.maxant.generic_jca_adapter.TransactionAssistanceXAResource] (Periodic Recovery) RECOVER TMENDRSCAN
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+H2 JdbcXAConnection#commit(...)
+    catch (SQLException localSQLException)
+    {
+      throw convertException(localSQLException);
+    }
+    XAException localXAException = new XAException(paramSQLException.getMessage());
+    localXAException.initCause(paramSQLException);
+    return localXAException;
+
+    
+    
+    
+    
+    
+Hello,
+
+I have the following test scenario:
+
+1) Start a distributed XA transaction (in JBoss)
+2) Insert data into the database (from say a Servlet using JDBC)
+3) Set a breakpoint in the class MysqlXAConnector (Mysql Driver 5.1.36), at the start of the method "commit(...)"
+4) when the debugger stops at the breakpoint, before the "XA COMMIT xyz" command has been sent to Mysql, stop Mysqld (server). Using the debugger, let the process continue.
+
+I expected that the transaction would remain in an incomplete state until the transaction manager can run the recovery process, at which point the driver would issue the "XA RECOVER" command to the database, which would return a list of incomplete transactions needing recovery.  The database did after all vote to commit during the "XA PREPARE" stage.
+
+But I have found two problems.  
+
+A) The driver (5.1.36) catches an SQLException on line 566 of MysqlXAConnection and that exception contains code 0 (lost connection). That is mapped into an MysqlXAException with the code XAException.XAER_RMFAIL (-7).  According to the XA spec (http://pubs.opengroup.org/onlinepubs/009680699/toc.pdf) page 32, an XA_RETRY may be returned to indicate that the attempt to commit can be repeated.  Indeed returning XA_RETRY from a proprietary JCA adapter that supports XA leads to JBoss re-attempting the commit upon recovery, so that the transaction can be successfully completed.  As it is, because Mysql is returning XAER_RMFAIL, the transaction ends up in a heuristic mixed state and an exception is thrown from the application server and other resources are committed, but Mysql does not commit and never commits during recovery either.  Is this behaviour really correct? 
+
+B) In the same scenario, at the point when the debugger is stopped in the driver code, just before the "XA COMMIT xyz" command is sent to the database, I run "XA RECOVER" from a Mysql command line client.  The open transaction is displayed.  I stop and then restart the database (while still waiting in the debugger) and again issue the "XA RECOVER" command. This time, no transaction is listed.  This means that the transaction cannot be recovered, even though it reported success during the "XA PREPARE" stage, and voted to be committed. According to Wikipedia (https://en.wikipedia.org/wiki/Two-phase_commit_protocol)
+"To accommodate recovery from failure (automatic in most cases) the protocol's participants use logging of the protocol's states. Log records, which are typically slow to generate but survive failures, are used by the protocol's recovery procedures."  Mysql does not appear to be logging records which survive crashes, unless shutting down is not the same as killing the process?  Is this behaviour also correct?
+
+Testing on a Thinkpad using Linux Fedora Core 20
+
+MySQL Command line client: mysql  Ver 14.14 Distrib 5.6.24, for Linux (x86_64) using  EditLine wrapper
+
+Server version:     5.6.24 MySQL Community Server (GPL)
+
+Java 1.8 (Oracle)
+
+JBoss Wildfly 8.2
+
+
+Thanks for any help :-)
+
+Ant    

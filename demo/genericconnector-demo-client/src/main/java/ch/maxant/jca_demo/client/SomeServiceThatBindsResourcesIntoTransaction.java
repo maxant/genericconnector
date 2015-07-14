@@ -33,12 +33,12 @@ import javax.sql.DataSource;
 
 import ch.maxant.generic_jca_adapter.TransactionAssistanceFactory;
 import ch.maxant.generic_jca_adapter.TransactionAssistant;
-import ch.maxant.jca_demo.client.generated.acquirer.Acquirer;
-import ch.maxant.jca_demo.client.generated.acquirer.AcquirerWebServiceService;
-import ch.maxant.jca_demo.client.generated.bookingsystem.BookingSystem;
-import ch.maxant.jca_demo.client.generated.bookingsystem.BookingSystemWebServiceService;
-import ch.maxant.jca_demo.client.generated.letterwriter.LetterWebServiceService;
-import ch.maxant.jca_demo.client.generated.letterwriter.LetterWriter;
+import ch.maxant.jca_demo.acquirer.Acquirer;
+import ch.maxant.jca_demo.acquirer.AcquirerWebServiceService;
+import ch.maxant.jca_demo.bookingsystem.BookingSystem;
+import ch.maxant.jca_demo.bookingsystem.BookingSystemWebServiceService;
+import ch.maxant.jca_demo.letterwriter.LetterWebServiceService;
+import ch.maxant.jca_demo.letterwriter.LetterWriter;
 
 /*
 if necessary, here is an H2 XA config, which uses the same driver as the normal example H2 connection:

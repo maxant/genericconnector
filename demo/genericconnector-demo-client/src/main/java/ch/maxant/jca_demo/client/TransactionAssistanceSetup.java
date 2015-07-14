@@ -29,9 +29,9 @@ import javax.ejb.Startup;
 
 import ch.maxant.generic_jca_adapter.TransactionAssistanceFactory;
 import ch.maxant.generic_jca_adapter.TransactionAssistanceFactory.CommitRollbackRecoveryCallback.Builder;
-import ch.maxant.jca_demo.client.generated.acquirer.AcquirerWebServiceService;
-import ch.maxant.jca_demo.client.generated.bookingsystem.BookingSystemWebServiceService;
-import ch.maxant.jca_demo.client.generated.letterwriter.LetterWebServiceService;
+import ch.maxant.jca_demo.acquirer.AcquirerWebServiceService;
+import ch.maxant.jca_demo.bookingsystem.BookingSystemWebServiceService;
+import ch.maxant.jca_demo.letterwriter.LetterWebServiceService;
 
 
 @Startup
