@@ -51,6 +51,7 @@ public class TransactionAssistanceSetup {
 
     @PostConstruct
     public void init() {
+    	log.log(Level.INFO, "Registering commit/rollback/recovery callbacks");
         acquirerFactory
             .registerCommitRollbackRecovery(new Builder()
             .withCommit( txid -> {
@@ -101,6 +102,7 @@ public class TransactionAssistanceSetup {
 
     @PreDestroy
     public void shutdown(){
+    	log.log(Level.INFO, "Unregistering commit/rollback/recovery callbacks");
         acquirerFactory.unregisterCommitRollbackRecovery();
         bookingFactory.unregisterCommitRollbackRecovery();
         letterWriterFactory.unregisterCommitRollbackRecovery();

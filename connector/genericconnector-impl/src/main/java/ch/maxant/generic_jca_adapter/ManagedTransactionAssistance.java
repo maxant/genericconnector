@@ -108,14 +108,6 @@ public class ManagedTransactionAssistance implements ManagedConnection, Serializ
         return connection;
     }
 
-    /**
-     * Used by the container to change the association of an
-     * application-level connection handle with a ManagedConneciton instance.
-     *
-     * @param connection Application-level connection handle
-     * @throws ResourceException generic exception if operation fails
-     */
-
     @Override
     public void associateConnection(Object connection) throws ResourceException {
         //never seen this called in JBoss!

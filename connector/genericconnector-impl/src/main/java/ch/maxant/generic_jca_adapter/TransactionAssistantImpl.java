@@ -18,6 +18,8 @@ package ch.maxant.generic_jca_adapter;
 
 public class TransactionAssistantImpl implements TransactionAssistant {
 
+    /** this implementation of hte TransactionAsssistant simply 
+     *  delegates to this managed transaction assistance instance */
     private ManagedTransactionAssistance mc;
 
     public TransactionAssistantImpl(ManagedTransactionAssistance mc) {

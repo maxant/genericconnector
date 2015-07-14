@@ -1,3 +1,3 @@
 # genericconnector API
 
-This module contains the Interfaces which clients use.
+This module contains the interfaces which clients use.

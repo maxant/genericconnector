@@ -51,20 +51,22 @@ public interface TransactionAssistanceFactory extends Serializable, Referenceabl
      * if you don't unregister before re-registering a callback.
      * Normally this is only called when an application is shutdown. */
     public void unregisterCommitRollbackRecovery();
-    
+
+    /** Classes with this interface are registered with the 
+        TransactionAssistanceFactory. */
     public static interface CommitRollbackRecoveryCallback {
         
         /** The container will call this function during
          * recovery which should call the EIS and must return 
          * transaction IDs which are known to be incomplete (not 
-         * yet committed or rolled back. Note that if the 
+         * yet committed or rolled back). Note that if the 
          * Resource Adapter is configured to manage transaction
          * state internally, then this method will not
-         * be called and can habe an empty implementation. */
+         * be called and can have an empty implementation. */
         String[] getTransactionsInNeedOfRecovery();
 
         /** The container will call this function 
-         * to commit a transaction was successful.
+         * to commit a transaction that was successful.
          * The implementation of this method should
          * call the EIS in order to commit
          * the transaction. */
@@ -77,7 +79,7 @@ public interface TransactionAssistanceFactory extends Serializable, Referenceabl
          * the transaction. */
         void rollback(String txid) throws Exception;
 
-        /** Builder enabling use of Java8 SAMs */ 
+        /** Builder enabling use of Java 8 SAMs */ 
         public static class Builder {
             private CommitRollbackFunction commit;
             private CommitRollbackFunction rollback;

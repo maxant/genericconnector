@@ -1,9 +1,19 @@
-#genericconnector
+#genericconnector - Home
 
-See connector/README.md for more details.
+A generic JCA resource adapter capable of binding things like web services into JTA global transactions controlled by Java EE application servers.
 
-This folder contains the resource adapter under "connector" and demo modules
-showing how to use the connector.
+See details at http://blog.maxant.co.uk/pebble/2015/TODO
+
+Unlike WS-AT the idea is that the resources being integrated, like web services, have business operations for **executing** business logic and then **committing** or **rolling** back the business logic.  If the web service you want to integrate has no commit operation, because for example the execution already commits, then simply leave the implementation of the commit callback empty (see usage).  Transactions will be eventually consistent.
+
+Compatible with Java EE 6 (JCA 1.5) and Java SE 1.6.
+Tested on JBoss EAP 6.2, Wildfly 8.2 and Wildfly 9.0.
+
+See connector/genericconnector-parent/README.md for more details.
+
+This folder contains:
+- the "connector" folder, containing the resource adapter
+- the "demo" folder containing a demo project showing how to use the adapter
 
 ##License
 

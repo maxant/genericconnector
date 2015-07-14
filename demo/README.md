@@ -1,6 +1,8 @@
 #genericconnector demo
 
-See genericconnector-demo-client/README.md
+This folder contains a demo application for trying out and testing the generic resource adapter.  
+
+See genericconnector-demo-client/README.md for more details.
 
 Build in Maven starting from genericconnector-demo-parent
 
@@ -35,7 +37,7 @@ For example:
             <datasources>
                 <xa-datasource jndi-name="java:/jdbc/MyXaDS" pool-name="MyXaDSPool" enabled="true" use-ccm="false">
                     <xa-datasource-property name="URL">
-                        jdbc:mysql://localhost:3306/SCALABOOK_APP?autoReconnect=true&amp;useUnicode=true&amp;characterEncoding=UTF-8
+                        jdbc:mysql://localhost:3306/temp?autoReconnect=true&amp;useUnicode=true&amp;characterEncoding=UTF-8
                     </xa-datasource-property>
                     <xa-datasource-class>com.mysql.jdbc.jdbc2.optional.MysqlXADataSource</xa-datasource-class>
                     <driver>mysql</driver>
@@ -48,8 +50,8 @@ For example:
                         <wrap-xa-resource>false</wrap-xa-resource>
                     </xa-pool>
                     <security>
-                        <user-name>john</user-name>
-                        <password>password</password>
+                        <user-name>tom</user-name>
+                        <password>j0nes</password>
                     </security>
                     <validation>
                         <validate-on-match>false</validate-on-match>

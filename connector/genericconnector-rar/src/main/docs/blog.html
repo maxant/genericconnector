@@ -553,10 +553,25 @@ All this is not good news.  There is however some good news.
 To accommodate recovery from failure (automatic in most cases) the protocol's participants use logging of the protocol's states. Log records, which are typically slow to generate but survive failures, are used by the protocol's recovery procedures. 
 
 
-https://developer.jboss.org/message/935799#935799
 
 http://forums.mysql.com/list.php?39
 
+        //TODO 7.6.2.8 of the JCA spec 1.6 says we must not erase knowledge 
+        //of the transaction branch until commit or rollback is called.
+
+
+
+https://developer.jboss.org/message/935799
+
+
+It turns out that Mysql has a bug, which has only just been closed after being open for nearly 10 years! Unfortunately the fix is not yet in the GA 5.6 version of Mysql, rather only available in the DMR 5.7 version.
+
+<a href='http://bugs.mysql.com/bug.php?id=12161' target='_blank'>MySQL Bugs: #12161: Xa recovery and client disconnection</a>
+
+The problem is also clearly described in the JBoss manual: <a href='https://access.redhat.com/documentation/en-US/JBoss_Enterprise_Application_Platform/5/html/Transactions_Administrators_Guide/ch07s04.html' target='_blank'>7.4. Recovery Modules</a>
+which also provides tips on getting XA recovery working with Oracle where special access needs to be granted to the appropriate user (has caught us out in the past).
+
+H2 and Mysql 5.6 broken :-(
 
 
 <br/>

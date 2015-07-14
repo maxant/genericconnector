@@ -95,45 +95,18 @@ public class ManagedTransactionAssistanceFactory implements ManagedConnectionFac
         initialised = true;
     }
     
-    /**
-     * Creates a Connection Factory instance.
-     *
-     * @return EIS-specific Connection Factory instance or
-     * javax.resource.cci.ConnectionFactory instance
-     * @throws ResourceException Generic exception
-     */
     @Override
     public Object createConnectionFactory() throws ResourceException {
         lazyInit();
         throw new ResourceException("This resource adapter doesn't support non-managed environments");
     }
 
-    /**
-     * Probably called by container to get the factory which it injects into e.g. servlets.
-     * 
-     * Creates a Connection Factory instance.
-     *
-     * @param cxManager ConnectionManager to be associated with created EIS
-     * connection factory instance
-     * @return EIS-specific Connection Factory instance or
-     * javax.resource.cci.ConnectionFactory instance
-     * @throws ResourceException Generic exception
-     */
     @Override
     public Object createConnectionFactory(ConnectionManager cxManager) throws ResourceException {
         lazyInit();
         return new TransactionAssistanceFactoryImpl(this, cxManager);
     }
 
-    /**
-     * Creates a new physical connection to the underlying EIS resource manager.
-     *
-     * @param subject Caller's security information
-     * @param cxRequestInfo Additional resource adapter specific connection
-     * request information
-     * * @throws ResourceException generic exception
-     * @return ManagedConnection instance
-     */
     @Override
     public ManagedConnection createManagedConnection(Subject subject, ConnectionRequestInfo cxRequestInfo) throws ResourceException {
         lazyInit();
@@ -145,17 +118,6 @@ public class ManagedTransactionAssistanceFactory implements ManagedConnectionFac
         return Boolean.valueOf(handleRecoveryInternally);
     }
 
-    /**
-     * For pooling support.
-     * 
-     * Returns a matched connection from the candidate set of connections.
-     *
-     * @param connectionSet Candidate connection set
-     * @param subject Caller's security information
-     * @param cxRequestInfo Additional resource adapter specific connection request information
-     * @throws ResourceException generic exception
-     * @return ManagedConnection if resource adapter finds an acceptable match otherwise null
-     */
     @SuppressWarnings({ "rawtypes", "unchecked" })
     @Override
     public ManagedConnection matchManagedConnections(Set connectionSet, Subject subject, ConnectionRequestInfo cxRequestInfo) throws ResourceException {
@@ -165,7 +127,14 @@ public class ManagedTransactionAssistanceFactory implements ManagedConnectionFac
         while (result == null && it.hasNext()) {
             ManagedConnection mc = it.next();
             if (mc instanceof ManagedTransactionAssistance) {
-                result = mc;
+            	if(cxRequestInfo != null /*&& TODO future: it contains the ID*/){
+            		ManagedTransactionAssistance mta = (ManagedTransactionAssistance)mc;
+            		/*
+            		if(cxRequestInfo.requiredMCFId().equals(mta.getManagedConnectionFactoryId()){
+            			result = mc;
+        			}
+            		*/
+            	}
             }
         }
         return result;

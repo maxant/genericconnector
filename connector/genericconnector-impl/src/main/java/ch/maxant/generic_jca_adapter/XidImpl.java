@@ -25,6 +25,9 @@ import java.util.Base64;
 
 import javax.transaction.xa.Xid;
 
+/** An implementation of Xid transaction IDs which uses base 64 to 
+   make the IDs HTTP friendly - i.e. they can be transported across
+   HTTP connections. */
 public class XidImpl implements Xid {
     
     private byte[] gtid;
@@ -71,6 +74,7 @@ public class XidImpl implements Xid {
         }
     }
     
+    /** @return Convert a (base 64 encoded) string into an Xid. */
     public static Xid getXid(String base64) {
         try{
             byte[] decoded = Base64.getDecoder().decode(base64);
@@ -83,8 +87,10 @@ public class XidImpl implements Xid {
             
             return new XidImpl(gtid, formatId, branchQualifier);
         } catch (ClassNotFoundException e){
+            //should never ever happen
             throw new RuntimeException("Failed to unmarshal xid " + base64, e);
         } catch (IOException e) {
+            //should never ever happen
             throw new RuntimeException("Failed to unmarshal xid " + base64, e);
         }
     }
