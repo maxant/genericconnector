@@ -92,17 +92,17 @@ public class SomeServiceThatBindsResourcesIntoTransaction {
             int id = insertFirstRecordIntoDatabase();
 
             String acquirerResponse = acquirerTransactionAssistant
-                    .executeInTransaction(txid -> {
+                    .executeInActiveTransaction(txid -> {
                         return acquirer.reserveMoney(txid, refNumber);
                     });
             log.log(Level.INFO, "reserved money...");
 
-            String bookingResponse = bookingTransactionAssistant.executeInTransaction(txid -> {
+            String bookingResponse = bookingTransactionAssistant.executeInActiveTransaction(txid -> {
                 return bookingSystem.reserveTickets(txid, refNumber);
             });
             log.log(Level.INFO, "reserved ticket...");
             
-            String letterResponse = letterWriterTransactionAssistant.executeInTransaction(txid -> {
+            String letterResponse = letterWriterTransactionAssistant.executeInActiveTransaction(txid -> {
                 return letterWriter.writeLetter(txid, refNumber);
             });
             log.log(Level.INFO, "created workflow to send letter...");

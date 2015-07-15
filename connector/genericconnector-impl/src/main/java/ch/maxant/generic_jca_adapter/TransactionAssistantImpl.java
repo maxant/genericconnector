@@ -27,7 +27,7 @@ public class TransactionAssistantImpl implements TransactionAssistant {
     }
     
     @Override
-    public <O> O executeInTransaction(ExecuteCallback<O> tc) throws Exception {
+    public <O> O executeInActiveTransaction(ExecuteCallback<O> tc) throws Exception {
         return mc.execute(tc);
     }
     

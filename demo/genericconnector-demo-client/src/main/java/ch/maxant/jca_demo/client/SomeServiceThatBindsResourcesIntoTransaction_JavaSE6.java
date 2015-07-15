@@ -80,7 +80,7 @@ public class SomeServiceThatBindsResourcesIntoTransaction_JavaSE6 {
 			int id = insertFirstRecordIntoDatabase();
 
             String acquirerResponse = acquirerTransactionAssistant
-                    .executeInTransaction(new ExecuteCallback<String>(){
+                    .executeInActiveTransaction(new ExecuteCallback<String>(){
                     	@Override
                     	public String execute(String txid) throws Exception {
                     		return acquirer.reserveMoney(txid, refNumber);
@@ -88,14 +88,14 @@ public class SomeServiceThatBindsResourcesIntoTransaction_JavaSE6 {
                     });
             log.log(Level.INFO, "reserved money...");
 
-            String bookingResponse = bookingTransactionAssistant.executeInTransaction(new ExecuteCallback<String>() {
+            String bookingResponse = bookingTransactionAssistant.executeInActiveTransaction(new ExecuteCallback<String>() {
             	@Override
             	public String execute(String txid) throws Exception {
             		return bookingSystem.reserveTickets(txid, refNumber);
             	}
 			});
             
-            String letterResponse = letterWriterTransactionAssistant.executeInTransaction(new ExecuteCallback<String>() {
+            String letterResponse = letterWriterTransactionAssistant.executeInActiveTransaction(new ExecuteCallback<String>() {
             	@Override
             	public String execute(String txid) throws Exception {
             		return letterWriter.writeLetter(txid, refNumber);
