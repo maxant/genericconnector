@@ -99,6 +99,9 @@ See end of blog article.
 
 5) Write a program which generates a report about incomplete transactions, based on the data persisted in steps 1) or 2) and deleted in step 4).  This helps you to sleep well at night, knowing that everything is indeed consistent. Should something be inconsistent, you will then have the information required to fix the inconsistencies.
 
+##Future features
+- `commit` and `rollback` could provide a parameter named `attemptNumber` which tells the application code how many times it has attempted to commit or rollback, so that the application code can decided to put the transaction into a dead letter queue if it wants to. 
+
 ##Configuration in JBoss:
 Insert under e.g. `jboss-install/standalone/configuration/server.xml`:
 
