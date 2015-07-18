@@ -11,9 +11,9 @@ Ant Kutschera, 201507
 <br/>
 <br/>
 I've published a generic JCA resource adapter on
-<a href='https://github.com/maxant/GenericConnector' target='_blank'>Github</a>
+<a href='https://github.com/maxant/genericconnector' target='_blank'>Github</a>
 available from Maven
-(<a href='https://maven-repository.com/artifact/ch.maxant/genericconnector' target='_blank'>ch.maxant:genericconnector</a>)
+(<a href='http://mvnrepository.com/artifact/ch.maxant' target='_blank'>ch.maxant:genericconnector-rar</a>)
 with an
 <a href='http://www.apache.org/licenses/LICENSE-2.0' target='_blank'>Apache 2.0 licence</a>
 which let's you bind things like REST and SOAP web services into JTA transactions under the control of Java EE application servers,
@@ -54,7 +54,7 @@ or
 <a href='https://github.com/jbosstm/quickstart/tree/master/XTS' target='_blank'>this JBoss example</a>
 or indeed
 <a href='https://metro.java.net/guide/ch18.html' target='_blank'>this Metro example</a>.
-There are several problems with those solution though: NFR-99 (the APIs used are not portable);
+There are several problems with those solutions though: NFR-99 (the APIs used are not portable);
 NFR-19 (REST doesn't support WS-AT, although there is 
 <a href='https://issues.jboss.org/browse/JBTM-1468' target='_blank'>something in the pipeline</a>
 at JBoss); and the fact that the web services we are integrating might not even support WS-AT.  I have integrated many internal and external web services in the past
@@ -124,7 +124,7 @@ rollback.
 Once however all resource managers have successfully reported that they want to commit, there is no going back.  The transaction manager will attempt to commit the 
 transaction on all resource managers even if they temporarily become unavailable.  The result is that temporarily there may be inconsistencies in the data which other 
 transactions can view, as say one resource manager that crashed has not yet been committed, even though it has been restarted and is again available, but eventually, 
-the data will become consistent.  This is an important point, because I have often heard, and I even used to cite that the two phase protocoll guaranteed ACID consistency.
+the data will become consistent.  This is an important point, because I have often heard, and I even used to cite that the two phase protocol guaranteed ACID consistency.
 It doesn't - it guarantees eventual consistency - only the local transactions viewed as individuals have ACID properties. 
 <br/>
 <br/>
@@ -175,7 +175,7 @@ It is that kind of system that we want to bind into our transaction.  The contra
 <ol>
     <li>The provider should make three operations available: execution, commit and rollback (although commit is actually optional
         <a href='#footnote1'><sup>1</sup></a>),</li>
-    <li>The provider may let non-committed and non-rolledback executions timeout afterwhich any reserved resources may be used in other transactions,</li>
+    <li>The provider may let non-committed and non-rolledback executions timeout after which any reserved resources may be used in other transactions,</li>
     <li>A successful execution guarantees that the transaction manager is allowed to commit or rollback the reserved resources, as long as no timeout has occurred
         <a href='#footnote2'><sup>2</sup></a>,</li>
     <li>A call to commit or rollback the reservation can be done multiple times without side effects, 
@@ -217,7 +217,7 @@ a given timeout, although that really does depend upon the functional business r
 <br/>
 <br/>
 A final stage, namely <b><i>recovery</i></b> (see listings 1 &amp; 2) is required, but it does not necessarily need to be implemented by the web service because
-the adapter can handle that part internally - afterall it knows about the state of the transactions since it has been making calls to the web service.
+the adapter can handle that part internally - after all it knows about the state of the transactions since it has been making calls to the web service.
 <br/>
 <br/>
 So, with the above assumptions, we can build a generic JCA resource adapter which tracks transaction state and calls the commit/rollback operations on web services 
@@ -583,10 +583,10 @@ Further tests with the H2 database sadly showed that it too does not support rec
     or the application server crash during commit/rollback.</li>
     <li><b>This is crazy - I don't want to implement commit and rollback operations on my web services!</b> WS-AT is for you! Or an inconsistent landscape...</li>
     <li><b>The system I am integrating requires me to call its commit and rollback methods with more than just the transaction ID.</b>
-        You need to persist the contextual data what you use (probably during the execution stage) and use the transaction ID as the key which you can then 
+        You need to persist the contextual data that you use during the execution stage and use the transaction ID as the key which you can then 
         use to lookup that data during commit, rollback or recovery.  Persist the data using an inner transaction (<code>@RequiresNew</code>) so that the data 
-        is definitely persisted before commit/rollback/recovery commences.</li>
-    <li><b>The system I am integrating dictates a session ID and does not take a transaction ID.</b>See the previous answer - map the transaction ID to the session 
+        is definitely persisted before commit/rollback/recovery commences - this way it is failure resistant.</li>
+    <li><b>The system I am integrating dictates a session ID and does not take a transaction ID.</b>  See the previous answer - map the transaction ID to the session 
         ID of the system you are integrating. Ensure that you do it in a peristent manner so that your application can survive crashes.</li>
     <li><b>The payment system I am integrating executes the payment on their own website, but the "commit" occurs over an HTTP call. Can I integrate this?</b>
         Yes! Redirect to their site to do the payment; when they callback to your site, run your business logic in a transaction and using the transaction assistant
@@ -596,7 +596,7 @@ Further tests with the H2 database sadly showed that it too does not support rec
 <h3>Using the generic adapter in your project</h3>
 To use the adapter in your application you need to do the follwing things:
 <ul>
-    <li>Create a dependecy on the <code>ch.maxant:genericconnector-api</code> Maven module,</li>
+    <li>Create a dependency on the <code>ch.maxant:genericconnector-api</code> Maven module,</li>
     <li>Write code as shown in listing 3 to execute business operations on the web services that your application integrates,</li> 
     <li>Setup commit and rollback callbacks as shown in listing 4, and optionally a recovery callback as shown in listing 6,</li>
     <li>Configure the resource adapter as shown in listing 5</li>
