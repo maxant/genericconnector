@@ -136,36 +136,6 @@ public class SomeServiceThatBindsResourcesIntoTransaction {
         }
     }
 
-    // TESTS:
-    // 1) no problem:
-    // http://localhost:8080/GenericConnectorDemo/ResourceServlet
-    // 2) fail db:
-    // http://localhost:8080/GenericConnectorDemo/ResourceServlet?refNum=FAILDB
-    // => check logs and db that no insert or sap update occurred
-    // 3) fail ws:
-    // http://localhost:8080/GenericConnectorDemo/ResourceServlet?refNum=FAILWSAcquirer
-    // http://localhost:8080/GenericConnectorDemo/ResourceServlet?refNum=FAILWSBookingSystem
-    // http://localhost:8080/GenericConnectorDemo/ResourceServlet?refNum=FAILWSLetterWriter
-    // => check logs and db that no insert or sap update occurred
-    // 4) disaster recovery: force NPE while at a breakpoint during
-    // commit in web service. see if recovery occurs, to cleanup SAP =>
-    // yes, a rollback occurs, since no resource has committed yet
-    // 5) at same breakpoint, shut down DB. then continue with no error
-    // => expect that db will be commit later. do we get a heuristic
-    // exception?? yes: javax.transaction.HeuristicMixedException
-    
-    //mysql> delete from address;
-    //mysql> delete from person;
-    //mysql> select * from person p inner join address a on a.person_FK = p.id;
-
-    // TODO redo tests where we kill something
-    // TODO redo tests using request params
-    // TODO redo tests documented above
-    // TODO test killing server, so that recovery runs
-    // TODO update jboss forum
-    // TODO mavenise all and publish impl JAR to maven? => then you just need to package it to make it work
-    // TODO ???
-    
     private int insertFirstRecordIntoDatabase() throws SQLException {
         int id;
         try (Connection database = ds.getConnection();

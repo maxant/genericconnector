@@ -81,7 +81,6 @@ public class AcquirerWebService {
     public List<String> findUnfinishedTransactions() throws IOException{
         List<String> unfinishedTxs = new ArrayList<>();
 
-        //TODO add another state? we dont want to recover ones which have only just started! maybe look at age of file?
         for(File f : f.listFiles(executeFilter)){
             try(FileInputStream fis = new FileInputStream(f)){
                 byte[] data = new byte[(int)f.length()];

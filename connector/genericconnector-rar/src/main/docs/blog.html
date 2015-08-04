@@ -1,29 +1,45 @@
 <html>
 <head>
     <script src="run_prettify.js"></script>
+    <style type="text/css">
+    body {
+        font-size: 16px;
+        font-weight: 300;
+        font-family: ProximaNova, helvetica, arial;
+        line-height: 150%;
+    }
+    </style>
 </head>
 <body>
     
 <h2>
-Global Data Consistency in Distributed Landscapes which use Web Services
+Global Data Consistency in Distributed (Microservice) Architectures
 </h2>
 Ant Kutschera, 201507
 <br/>
 <br/>
+
+
+
+
+
+
+
+
 I've published a generic JCA resource adapter on
 <a href='https://github.com/maxant/genericconnector' target='_blank'>Github</a>
 available from Maven
 (<a href='http://mvnrepository.com/artifact/ch.maxant' target='_blank'>ch.maxant:genericconnector-rar</a>)
 with an
-<a href='http://www.apache.org/licenses/LICENSE-2.0' target='_blank'>Apache 2.0 licence</a>
-which let's you bind things like REST and SOAP web services into JTA transactions under the control of Java EE application servers,
-so that you can build systems which guarantee data consistency, with as little boiler plate code as possible, very easily. Be sure to read the 
+<a href='http://www.apache.org/licenses/LICENSE-2.0' target='_blank'>Apache 2.0 licence</a>.
+This let's you bind things like REST and SOAP web services into JTA transactions which are under the control of Java EE application servers.
+That makes it possible to build systems which guarantee data consistency, with as little boiler plate code as possible, very easily. Be sure to read the 
 <a href='#FAQ'>FAQ</a>.
 <br/>
 <br/>
 Imagine the following scenario...
 
-<h3>Functional Requirements</h3>
+<h2>Functional Requirements</h2>
 <ul>
     <li>... many pages of sleep inducing requirements...</li>
     <li>FR-4053: When the user clicks the "buy" button, the system should book the tickets, make a confirmed payment transaction with the acquirer and send a
@@ -31,7 +47,7 @@ Imagine the following scenario...
     <li>... many more requirements...</li>
 </ul>
 
-<h3>Selected Non-Functional Requirements</h3>
+<h2>Selected Non-Functional Requirements</h2>
 <ul>
     <li>NFR-08: The tickets must be booked using NBS (the corporations "Nouvelle Booking System"), an HTTP SOAP Web Service deployed within the intranet.</li>
     <li>NFR-19: Output Management (printing and sending letters) must be done using COMS, a JSON/REST Service also deployed within the intranet.</li>
@@ -42,7 +58,7 @@ Imagine the following scenario...
     <li>NFR-99: Due to the MIGRATION'16 project, the system must be built to be portable to a different application server.</li>
 </ul>
 
-<h3>Design</h3>
+<h2>Analysis</h2>
 NFR-45 is interesting.  We need to ensure that the data across multiple systems remains consistent, i.e. even during software/hardware crashes. Yet NFR-08, 
 NFR-19, NFR-22 and NFR-34 make things a little harder.  <i>SOAP and REST don't support transactions!</i> - No, that isn't entirely true.  We could very easily use
 something like the Arjuna transaction manager from JBoss which supports 
@@ -66,14 +82,18 @@ who end up effectively building their own transaction managers, which bind web s
 about consistency and ignore NFR-45.  I like the idea of consistency, but I don't like the idea of a business project writing a framework which tracks the state 
 of transactions and manually commits or rolls them back trying to stay synchronised with a Java EE transaction manager. 
 So a few years ago I had an idea of how to fulfil all of those requirements yet avoid such a complex solution that it was 
-akin to building a transaction manager.  NFR-84 almost comes to the rescue! Java EE application servers support distributed transaction via
-<a href='https://en.wikipedia.org/wiki/Two-phase_commit_protocol' target='_blank'>two phase commit</a>. 
+akin to building a transaction manager.  NFR-84 almost comes to the rescue because Java EE application servers support distributed transactions. 
 I wrote "almost" because what is missing is some form of adapter for binding 
 non-standard resources like web services into such transactions.  But the Java EE specifications also contain
 <a href='https://www.jcp.org/en/jsr/detail?id=112' target='_blank'>JSR-112</a>, 
 the JCA specification for building resource adapters, that can be bound into distributed transactions. My idea was to build a generic resource adapter
 that could be used to bind web services and other things into the transaction under the control of the application server, with as little configuration as necessary and with
-as simple an API as I could design.  To understand the idea better, let's take a look at how you can bind a database into an XA transaction 
+as simple an API as I could design.  
+
+<h2>Background to Distributed Transactions</h2>
+To understand the idea better, let's take a look at distributed transactions and
+<a href='https://en.wikipedia.org/wiki/Two-phase_commit_protocol' target='_blank'>two phase commit</a>
+which can be used to bind calls made to a database into an XA transaction 
 <a href='https://dev.mysql.com/doc/refman/5.7/en/xa-statements.html' target='_blank'>using SQL</a>.
 Listing 1 shows a list of statements which are needed to commit data in an XA transaction:
 
@@ -106,7 +126,7 @@ Once all that business stuff is finished, and between lines 1 and 5 you could be
 that the transaction isn't yet complete, it just moves to a state where the global transaction manager can start to query each resource manager as to whether it should
 go ahead and commit the transaction. If just one resource manager decides it does not want to commit the data, then the transaction manager will tell all the others to 
 rollback their transactions.  If however all of the resource managers report that they are happy to commit the transaction, and they do so via their response to line 7, 
-then the transaction manager will tell all the resource managers to commit the local transaction using a command like that on line 9.  After line 9 runs, the 
+then the transaction manager will tell all the resource managers to commit their local transaction using a command like that on line 9.  After line 9 runs, the 
 data is available to everyone as the select statement on line 11 demonstrates.
 <br/>
 <br/>
@@ -146,13 +166,14 @@ mysql> XA RECOVER ;
 </pre>
 </div>
 <b><small>Listing 2: The XA recover command in SQL</small></b><br/>
-<br/>
+
+<h2>Design</h2>
 <a id='contract'></a>
-Now, the JCA spec includes the ability for the transaction manager to retrieve an XA Resource from the adapter which represents a resource which understands commands like
-start, end, prepare, commit, rollback and recover.  The challenge is now to use that fact to create a resource adapter that can call web services which know how to 
-commit and rollback, just like a remote database engine does.
-If we make a few assumptions we can define a simplified contract which such remote web services need to implement, 
-so that we can get two phase commit to work across remote web service calls.
+The JCA spec includes the ability for the transaction manager to retrieve an XA Resource from the adapter, which represents a resource which understands commands like
+start, end, prepare, commit, rollback and recover.  The challenge is to use that fact to create a resource adapter that can call services which 
+have the ability to be commit and rolled back, in a similar fashion to a remote database engine.
+If we make a few assumptions we can define a simplified contract which such services need to implement, 
+so that we can bind them into distributed transactions.
 <br/>
 <br/>
 Consider for example NFR-22 and MMF, the acquirer system. 
@@ -164,8 +185,8 @@ complete all your business transactions on your side, and then definitely book t
  crash should take no more than a few minutes.
 The same often goes for ticket booking systems in my
 experience where a ticket can be booked, and shortly afterwards confirmed, at a time when you are willing to take responsibility for its cost.  
-I will refer to the initial step as the <b><i>execution</i></b> and the latter step as the <b><i>commit</i></b>.  Of course if you cannot complete business on your side, 
-an alternative to step two, namely <b><i>rollback</i></b>, can be run in order to cancel the booking.  If you aren't friendly enough to rollback and you just leave the reservation open
+I will refer to the initial stage as <b><i>execution</i></b> and the latter stage as <b><i>commit</i></b>.  Of course if you cannot complete business on your side, 
+an alternative to stage two, namely <b><i>rollback</i></b>, can be run in order to cancel the booking.  If you aren't friendly enough to rollback and you just leave the reservation open
 the provider should eventually let the reservation <b><i>timeout</i></b> so that 
 the reserved "resource" (money or tickets in this example) can be used elsewhere, for example so that the customer can go shopping or the ticket can be bought by someone
 else.
@@ -178,13 +199,14 @@ It is that kind of system that we want to bind into our transaction.  The contra
     <li>The provider may let non-committed and non-rolledback executions timeout after which any reserved resources may be used in other transactions,</li>
     <li>A successful execution guarantees that the transaction manager is allowed to commit or rollback the reserved resources, as long as no timeout has occurred
         <a href='#footnote2'><sup>2</sup></a>,</li>
-    <li>A call to commit or rollback the reservation can be done multiple times without side effects, 
+    <li>A call to commit or rollback the reservation can be done multiple times without side effects (think about idempotency here), 
         so that the transaction manager may finish the transaction if an initial attempt failed.</li>
 </ol>
 
 <hr/>
 <a id='footnote1'></a>
 Footnote #1: Sometimes web services offer an execution operation and an operation for cancelling the call, e.g. so that money is indeed not taken from the customers account.
+But they don't offer an operation for committing the execution.
 If we go back to the discussion around listing 2 where I stated that the transactions are eventually consistent rather than immediately consistent, it becomes clear
 that it doesn't matter if a system in a global transaction definitely books resources during the execution stage rather than waiting until the commit stage.  Eventually, 
 either all systems will also commit, or all will rollback and the money transaction will be cancelled, freeing up reserved funds on the customers account.  Note however that a 
@@ -198,22 +220,28 @@ fail due to technical problems, in which case the transaction manager may attemp
 the commit or rollback operations. All validation must be completed during the execution, i.e. before commit or rollback time.  The same is true in the database world - during
 XA transactions the database must check all constraints at latest during the prepare stage, i.e. definitely before the commit or rollback stage.
 <hr/>
-With a contract like this, there is a fundamental difference to the way in which WS-AT is designed: transactions behind the web service are NOT kept open between 
-execution and commit/rollback.  Take the acquirer example: the money that is reserved during execution is really put to one side and is no longer available to
-other entities trying to create a credit card transaction.  But the money also hasn't been transferred to our account.  There are three states: i) the money is in the customer's
-credit; ii) the money is reserved and may not be used by other transactions; iii) the money is booked and is no longer available to the customer.  
+Let's compare using a contract like this to using a database.  Take the acquirer web service: the money that is reserved during execution is really put to one side and 
+is no longer available to other entities trying to create a credit card transaction.  But the money also hasn't been transferred to our account.  
+There are three states: i) the money is in the customer's credit; ii) the money is reserved and may not be used by other transactions; iii) the money is booked and 
+is no longer available to the customer.  
+This is analagous to a database transaction: i) a row has not yet been inserted; ii) the row is inserted, but not currently visible to other transactions (although 
+that depends on the transaction isolation level); iii) finally the row is committed and visible to everyone.  
+Although this is similar to the acquirer example  
+the transaction which reserves money in the web service is immediately visible to the entire world once the execution stage is committed - it does not remain
+invisible until after the commit stage as is the case with the database.  
+The isolation level is different but of course the web service can be built to hide such information, for example based on the state, if the requirements need it to be so.
 <br/>
 <br/>
-Compare this to a database running in a transaction: i) a row has not yet been inserted; ii) the row is inserted, but not currently visible to other transactions (although 
-that depends on the transaction isolation level); iii) finally the row is committed and visible to everyone.  Although this is similar to the money example above there is a
-difference: the database transaction which reserves money is immediately visible to the entire world once it is commit during the "execution" stage - it does not remain
-invisible until after the commit stage.  The isolation level is different but of course the web service can be built to hide such information, based on the state, if the
-requirements are such.
+With a contract like this, there are several fundamental differences to the way in which WS-AT and two phase commit are designed.
+Firstly transactions encapsulated inside a web service are NOT kept open between execution and commit/rollback.  
+Secondly, because the transaction isn't kept open, resources are not locked, as they might be when using databases. And these two
+differences lead to a third: rolling back a web service call is normally not about undoing what it did, rather about changing the state of what it did so that from a
+business point of view, resources again become available.
 <br/>
 <br/>
-That means we need to provide three operations on the booking web service: one to reserve the tickets; one to commit the reservation when the global transaction is committed
-and one to rollback the reservation, if the global transaction is rolled back.  The booking system should also contain a background process which releases resources after
-a given timeout, although that really does depend upon the functional business requirements of the booking system.
+These differences are what give the generic connector the advantage over traditional two phase commit.  What is really going on in this 
+connector is that we are piggy-backing onto the distributed transaction, cherry-picking the best parts, namely execution, commit, rollback and recovery. 
+By doing this in a Java EE application server, we get transaction management for free!
 <br/>
 <br/>
 A final stage, namely <b><i>recovery</i></b> (see listings 1 &amp; 2) is required, but it does not necessarily need to be implemented by the web service because
@@ -224,11 +252,20 @@ So, with the above assumptions, we can build a generic JCA resource adapter whic
 at the correct time, when the transaction manager tells the XA resource to do things like start a transaction, execute some business code and commit or rollback the 
 transaction.
 
-<h3>Implementation</h3>
-I won't cover the implementation of the adapter here, but rather I will show how to use it!
-The first requirement I gave myself was to build an API which allows you to add business calls to a web service, inside a transaction.
-<br/>
-<br/>
+<h2>Applicability to Microservice Architectures</h2>
+<a href='http://martinfowler.com/articles/microservices.html' target='_blank'>Microservice architectures</a> or indeed SOA have one noteworthy problem when compared to monolithic 
+applications, namely that it is hard to keep data consistent in a distributed system.  A microservice will typically provide operations for doing work, but should also offer
+operations to cancel that work.  The work doesn't need to be made invisible, but it does need to be cancelled as far as the business is concerned, so that no more resources
+(money, time, human effort, etc.) is invested in the work.  
+The adapter presented here can be used inside an "application layer", i.e. a service which your clients (mobile, rich web clients, etc.) call. That layer should be 
+deployed in a Java EE application server and make use of the generic connector each time one of the microservices in your landscape is called.  
+That way, if something fails, all the microservice calls can be "rolled back" by the transaction manager.
+The point of the application layer is to control the global transaction so that anything which needs to be done consistently can be monitored and coordinated 
+by the transaction manager, rather than say calling each microservice directly from the client and then having to write code which cleans up 
+and restores consistency.
+
+<h2>Using the Adapter</h2>
+The first requirement I gave myself was to build an API which allows you to add business calls to a web service, inside an existing transaction.
 Listing 3 shows an example of how to bind the web service call into a transaction using Java 8 lambdas (even though the API is compatible with Java 1.6 - see Github for
 an example).
 
@@ -342,12 +379,12 @@ As you can see, binding a web service, or indeed anything which does not natural
 into a JTA global transaction is very easy using the generic adapter that I have created.  The only thing left is to configure 
 the adapter so that it can be deployed together with your application.  
 
-<h3>Adapter Configuration</h3>
+<h2>Adapter Configuration</h2>
 The adapter needs to be configured once per web service which it should bind into transactions.
 To make that a little clearer, consider the code in listing 4 for registering callbacks for commit and rollback.  Only one callback can be registered per adapter 
 <i>instance</i> i.e. JNDI name.
 Configuring the adapter is application server specific, but only because of where you put the following XML.  In Jboss EAP 6 / Wildfly 8 upwards, it is put into 
-<code>&lt;jboss-install-folder&gt;/standalone/configuration/server.xml</code>, between the XML tags similar to 
+<code>&lt;jboss-install-folder&gt;/standalone/configuration/standalone.xml</code>, between the XML tags similar to 
 <code>&lt;subsystem xmlns="urn:jboss:domain:resource-adapters:...&gt;</code>
 
 <div>
@@ -409,8 +446,8 @@ state which it needs to track.  It is recommended to use a directory on the loca
 Lines 22-31 are required for JBoss so that it really does use the <code>XAResource</code> and bind calls into the global transaction.  It is possible that other 
 application servers only require line 6 - the deployment to other application servers has not yet been fully tested 
 (<a href='https://developer.jboss.org/thread/229857' target='_blank'>more details...</a>).
-<br/>
-<br/>
+
+<h2>Recovery</h2>
 Until now I haven't said much about recovery.  Indeed, the <code>handleRecoveryInternally</code> attribute in the XML in listing 5 means that the application developer
 doesn't really need to think about recovery. Yet if we return to listing 2, recovery is a clear part of the two phase commit protocol.  Indeed Wikipedia states that 
 "<i>To accommodate recovery from failure (automatic in most cases) the protocol's participants use logging of the protocol's states. Log records, which are typically
@@ -477,7 +514,7 @@ errors shouldn't occur here and secondly the transaction manager calls this call
 ever be shown an error.  Of course, if the web service is currently unavailable, the transaction manager will receive no transaction IDs,
 but the hope is that the next time it tries (roughly every two minutes in JBoss Wildfly 8), the web service will again be available.
 
-<h3>Tests</h3>
+<h2>Tests</h2>
 To test the adapter, a demo application based on the scenario described at the start of this article 
 was built (also available on Github) which calls three web services and writes to the database twice, all during 
 the same transaction.  The acquirer supports execution, commit, rollback and recovery; the booking system supports execution, commit and rollback; the
@@ -503,7 +540,7 @@ The adapter was tested using the following test cases:
         i.e. that everything is committed.</li>
 </ul>
 
-<h3>Results</h3>
+<h2>Results</h2>
 The demo application and resource adapter log everything they do, so the first port of call is to read the logs during each test.
 Additionally, the database writes to disk, so we can use a database client to query the database state for example 
 <code>select * from person p inner join address a on a.person_FK = p.id;</code>.
@@ -516,7 +553,109 @@ The adapter removes the temporary file named <code>exec*txt</code> once the tran
 is to read the adapter logs, although checking that the files are removed makes sense, albeit doesn't inform whether there was a commit or a rollback.
 <br/>
 <br/>
-The results were all positive and as expected although an ancient bug in Mysql provided a nice little challenge to overcome.
+The results were <b>all positive and as expected</b> although an ancient bug in Mysql provided a nice little challenge to overcome, 
+which I will write about in a different article.
+If you have difficulty with your database, take a look at
+<a href='https://access.redhat.com/documentation/en-US/JBoss_Enterprise_Application_Platform/5/html/Transactions_Administrators_Guide/ch07s04.html' target='_blank'>the JBoss manual</a>
+which provides tips on getting XA recovery working with different databases.
+<br/>
+<br/>
+
+
+
+
+
+<a id='FAQ'></a>
+<h2>FAQ</h2>
+<ul>
+    <li><b>The service I am integrating only offers an operation to execute and an operation to cancel.  There is no commit operation.</b>
+    No worries - this is acceptable and discussed above, where the 
+    <a href='#footnote1'>contract that web services should fulfil</a> is discussed. Basically, call the execute operation during normal business processing
+    and the cancel operation only if there is a rollback. During the commit stage, don't do anything, since data was already committed during the call to the 
+    execute operation.</li>
+    <li><b>What happens if a web service takes a long time to come back online, after a business operation is executed but before the commit/rollback 
+    operation has been called?</b>
+    Transactions that require recovery may end up in trouble if they take a long time to come back online, because it is recommended that the 
+    systems behind the web service implement a timeout after which they clean up reserved but not booked (committed) resources.  Take the example
+    where a seat is reserved in a theatre during the execution but the final booking of the seat is delayed due to a system failure.  It is entirely
+    possible that the seat will be released after say half an hour so that it can be sold to other potential customers.  If the seat is released
+    and some time later the application server which reserved it attempts to book the seat, there could be an inconsistency in the system as a 
+    whole, as the other participants in the global transaction could be committed, indicating that the seat was sold, and for example money 
+    was taken for the seat, yet the seat has been sold to another customer.  <i>This case can occur in normal two phase commit processes.</i>
+    Imagine a database transaction that creates a foreign key reference to a record, but that record is deleted in a different transaction. 
+    Normally the solution is to lock resources, which the reservation of the seat is actually doing.  But indefinate locking of resources can cause problems
+    like deadlocks.   This problem is not unique to the solution presented here.  
+    </li>
+    <li><b>Why don't you recommend WS-AT?</b>
+    Mostly because the world is full of services which don't offer WS-AT support.  And the adapter I have written here is generic enough
+    that you could be integrating non-web service resources. But also because of the locking and temporal issues which can occur, related to keeping 
+    the transaction open between the execution and commit stages.</li>
+    <li><b>Why not just create an implementation of
+    <a href='http://docs.oracle.com/javaee/6/api/javax/transaction/xa/XAResource.html' target='_blank'>XAResource</a>
+    and enlist it into the transaction using the 
+    <a href='http://docs.oracle.com/javaee/6/api/javax/transaction/Transaction.html#enlistResource(javax.transaction.xa.XAResource)' target='_blank'><code>enlistResource</code></a>
+    method?</b>
+    Because doing so doesn't handle recovery.  The generic connecter presented here also handles recovery when either the resource
+    or the application server crash during commit/rollback.</li>
+    <li><b>This is crazy - I don't want to implement commit and rollback operations on my web services!</b> WS-AT is for you! Or an inconsistent landscape...</li>
+    <li><b>I'm in a microservice landscape - can you help me?</b> Yes!  Rather than letting your client call multiple microservices and then having to worry about
+        global data consistency itself, say in the case where one service call fails, make the client call an "application layer", i.e. a service
+        which is running in a Java EE application sever.  That service should make calls to the back end by using the generic connector, and that way
+        the complex logic required to guarantee global data consistency is handled by the transaction manager, rather than code which you would have to otherwise 
+        write.</li>
+    <li><b>The system I am integrating requires me to call its commit and rollback methods with more than just the transaction ID.</b>
+        You need to persist the contextual data that you use during the execution stage and use the transaction ID as the key which you can then 
+        use to lookup that data during commit, rollback or recovery.  Persist the data using an inner transaction (<code>@RequiresNew</code>) so that the data 
+        is definitely persisted before commit/rollback/recovery commences - this way it is failure resistant.</li>
+    <li><b>The system I am integrating dictates a session ID and does not take a transaction ID.</b>  See the previous answer - map the transaction ID to the session 
+        ID of the system you are integrating. Ensure that you do it in a peristent manner so that your application can survive crashes.</li>
+    <li><b>The payment system I am integrating executes the payment on their own website, but the "commit" occurs over an HTTP call. Can I integrate this?</b>
+        Yes! Redirect to their site to do the payment; when they callback to your site, run your business logic in a transaction and using the transaction assistant
+        execute a no-op method in the execution stage which will cause the commit callback to be called at commit time; in the commit callback make the HTTP
+        call to the payment system to confirm the payment.</li>
+</ul>
+<h2>Using the generic adapter in your project</h2>
+To use the adapter in your application you need to do the follwing things:
+<ul>
+    <li>Create a dependency on the <code>ch.maxant:genericconnector-api</code> Maven module,</li>
+    <li>Write code as shown in listing 3 to execute business operations on the web services that your application integrates,</li> 
+    <li>Setup commit and rollback callbacks as shown in listing 4, and optionally a recovery callback as shown in listing 6,</li>
+    <li>Configure the resource adapter as shown in listing 5</li>
+    <li>Deploy the resource adapter in an EAR by adding a dependency to the Maven module <code>ch.maxant:genericconnector-rar</code> and 
+        referencing it as a connector module in 
+        the <code>application.xml</code> deployment descriptor.
+</ul>
+For more information, see the 
+<a href='https://github.com/maxant/genericconnector/tree/master/demo' target='_blank'>demo application</a>.
+
+<h2>Conclusions</h2>
+The idea that I had, namely to bind web service calls into JTA transactions using a generic JCA resource adapter does work.  It eliminates the need to build your own
+transaction management logic and it does ensure that there is consistency across the entire landscape, regardless of whether a transaction is committed or rolled back in 
+the application code running in the Java EE application server.
+
+<h2>Further Reading</h2>
+<a href='http://ksat.me/a-plain-english-introduction-to-cap-theorem/' target='_blank'>A plain english introduction to CAP Theorem</a><br/>
+<a href='http://www.ben-morris.com/eventual-consistency-and-the-trade-offs-required-by-distributed-development/' target='_blank'>Eventual consistency and the trade-offs required by distributed development</a><br/>
+<a href='http://www.stackbuilders.com/news/the-hidden-costs-of-microservices' target='_blank'>The hidden costs of microservices</a><br/>
+<a href='http://martinfowler.com/articles/microservice-trade-offs.html' target='_blank'>Microservice Trade-Offs</a><br/>
+<a href='http://www.enterpriseintegrationpatterns.com/ramblings/18_starbucks.html' target='_blank'>Starbucks Does Not Use Two-Phase Commit</a><br/>
+
+<br/>
+Copyright &copy;2015, Ant Kutschera, with thanks to <a href='http://www.codeblock.ch' target='_blank'>Claude Gex</a> for his review.
+
+
+
+
+
+
+
+</body>
+</html>
+
+
+<hr>
+------------------------------------------------------------------------------
+
 While initially testing database/app server crashes with Mysql 5.6 rather than Mysql 5.7, I was having the problem that the database never committed the transaction
 meaning that the system as a whole was in an inconsistent state.  There were absolutely no problems with the generic connector, just the database.
 The application server continuously logged that there was an incomplete transaction but was unable to 
@@ -551,72 +690,6 @@ The problem is also clearly described <a href='https://access.redhat.com/documen
 Further tests with the H2 database sadly showed that it too does not support recovery of XA transactions.
 <br/>
 <br/>
-
-<a id='FAQ'></a>
-<h3>FAQ</h3>
-<ul>
-    <li><b>The service I am integrating only offers an operation to execute and an operation to cancel.  There is no commit operation.</b>
-    No worries - this is acceptable and discussed above, where the 
-    <a href='#contract'>contract that web services should fulfil</a> is discussed.</li>
-    <li><b>What happens if a web service takes a long time to come back online, after a business operation is executed but before the commit/rollback 
-    operation has been called?</b>
-    Transactions that require recovery may end up in trouble if they take a long time to come back online, because it is recommended that the 
-    systems behind the web service implement a timeout after which they clean up reserved but not booked (committed) resources.  Take the example
-    where a seat is reserved in a theatre during the execution but the final booking of the seat is delayed due to a system failure.  It is entirely
-    possible that the seat will be released after say half an hour so that it can be sold to other potential customers.  If the seat is released
-    and some time later the application server which reserved it attempts to book the seat, there could be an inconsistency in the system as a 
-    whole, as the other participants in the global transaction could be committed, indicating that the seat was sold, and for example money 
-    was taken for the seat, yet the seat has been sold to another customer.  <i>This case can occur in normal two phase commit processes.</i>
-    Imagine a database transaction that creates a foreign key reference to a record, but that record is deleted in a different transaction. 
-    Normally the solution is to lock resources, which the reservation of the seat is actually doing.  But indefinate locking of resources can cause problems
-    like deadlocks.   This problem is not unique to the solution presented here.  
-    </li>
-    <li><b>Why don't you recommend WS-AT?</b>
-    Actually I do, but sadly the world is full of services which don't offer WS-AT support.  And the adapter I have written here is generic enough
-    that you could be integrating non-web service resources.</li>
-    <li><b>Why not just create an implementation of
-    <a href='http://docs.oracle.com/javaee/6/api/javax/transaction/xa/XAResource.html' target='_blank'>XAResource</a>
-    and enlist it into the transaction using the 
-    <a href='http://docs.oracle.com/javaee/6/api/javax/transaction/Transaction.html#enlistResource(javax.transaction.xa.XAResource)' target='_blank'><code>enlistResource</code></a>
-    method?</b>
-    Because doing so doesn't handle recovery.  The generic connecter presented here also handles recovery when either the resource
-    or the application server crash during commit/rollback.</li>
-    <li><b>This is crazy - I don't want to implement commit and rollback operations on my web services!</b> WS-AT is for you! Or an inconsistent landscape...</li>
-    <li><b>The system I am integrating requires me to call its commit and rollback methods with more than just the transaction ID.</b>
-        You need to persist the contextual data that you use during the execution stage and use the transaction ID as the key which you can then 
-        use to lookup that data during commit, rollback or recovery.  Persist the data using an inner transaction (<code>@RequiresNew</code>) so that the data 
-        is definitely persisted before commit/rollback/recovery commences - this way it is failure resistant.</li>
-    <li><b>The system I am integrating dictates a session ID and does not take a transaction ID.</b>  See the previous answer - map the transaction ID to the session 
-        ID of the system you are integrating. Ensure that you do it in a peristent manner so that your application can survive crashes.</li>
-    <li><b>The payment system I am integrating executes the payment on their own website, but the "commit" occurs over an HTTP call. Can I integrate this?</b>
-        Yes! Redirect to their site to do the payment; when they callback to your site, run your business logic in a transaction and using the transaction assistant
-        execute a no-op method in the execution stage which will cause the commit callback to be called at commit time; in the commit callback make the HTTP
-        call to the payment system to confirm the payment.</li>
-</ul>
-<h3>Using the generic adapter in your project</h3>
-To use the adapter in your application you need to do the follwing things:
-<ul>
-    <li>Create a dependency on the <code>ch.maxant:genericconnector-api</code> Maven module,</li>
-    <li>Write code as shown in listing 3 to execute business operations on the web services that your application integrates,</li> 
-    <li>Setup commit and rollback callbacks as shown in listing 4, and optionally a recovery callback as shown in listing 6,</li>
-    <li>Configure the resource adapter as shown in listing 5</li>
-    <li>Deploy the resource adapter in an EAR by adding a dependency to the Maven module <code>ch.maxant:genericconnector-rar</code> and 
-        referencing it as a connector module in 
-        the <code>application.xml</code> deployment descriptor.
-</ul>
-For more information, see the 
-<a href='https://github.com/maxant/genericconnector/tree/master/demo' target='_blank'>demo application</a>.
-
-<h3>Conclusions</h3>
-The idea that I had, namely to bind web service calls into JTA transactions using a generic JCA resource adapter does work.  It reduces the need to build your own
-transaction manager and it does ensure that there is consistency across the entire system, regardless of whether a transaction is committed or rolled back in 
-the application code running in the Java EE application server.
-
-<br/>
-<br/>
-Copyright &copy;2015, Ant Kutschera
-</body>
-</html>
 
 
 <hr>
@@ -657,7 +730,6 @@ some code
     // TODO redo tests using request params
     // TODO redo tests documented above
     // TODO test killing server, so that recovery runs
-    // TODO blog: create client using: wsimport -s src http://localhost:8080/GenericConnectorDemoAquirerWebservice/AcquirerWebService?wsdl
     // TODO blog: http://pubs.opengroup.org/onlinepubs/009680699/toc.pdf p32 => failure to commit should throw XA_RETRY
     // TODO blog: cut DB during commit -> check alls well => what about with other DB? e.g. h2? always seems to end in HeuristicMixedException and DB isnt inserted :-(
     // TODO blog: show how to bind book/cancel if service is simpler

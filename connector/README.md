@@ -6,7 +6,7 @@ Build using Maven starting from genericconnector-parent.
 
 The code here builds a generic JCA resource adapter capable of binding things like web services into JTA global transactions controlled by Java EE application servers.
 
-See details at http://blog.maxant.co.uk/pebble/2015/TODO
+See details at http://blog.maxant.co.uk/pebble/2015/08/04/1438716480000.html
 
 Unlike WS-AT the idea is that the resources being integrated, like web services, have business operations for executing business logic and then committing or rolling
 back the business logic.  If the web service you want to integrate has no commit operation, because for example the execution already does it, then simply leave the 
