@@ -80,9 +80,16 @@ public class ManagedTransactionAssistance implements ManagedConnection, Serializ
     /** managedConnectionFactoryId from the managed connection factory */
     private String managedConnectionFactoryId;
 
-    public ManagedTransactionAssistance(CommitRollbackRecoveryCallback commitRollbackRecoveryCallback, boolean handleRecoveryInternally, File recoveryStatePersistenceDirectory, String managedConnectionFactoryId) {
+    /** the minimum age which a transaction must be, before it is considered relevant for recovery.
+     * important, because recovery could run parallel to execute/commit/rollback, and we dont want recovery 
+     * doing something to a transaction that is currently active!
+     */
+	private int minAgeOfTransactionBeforeRelevantForRecovery;
+
+    public ManagedTransactionAssistance(CommitRollbackRecoveryCallback commitRollbackRecoveryCallback, boolean handleRecoveryInternally, int minAgeOfTransactionBeforeRelevantForRecovery, File recoveryStatePersistenceDirectory, String managedConnectionFactoryId) {
         this.commitRollbackRecoveryCallback = commitRollbackRecoveryCallback;
         this.handleRecoveryInternally = handleRecoveryInternally;
+        this.minAgeOfTransactionBeforeRelevantForRecovery = minAgeOfTransactionBeforeRelevantForRecovery;
         this.recoveryStatePersistenceDirectory = recoveryStatePersistenceDirectory;
         this.managedConnectionFactoryId = managedConnectionFactoryId;
         this.xa = new TransactionAssistanceXAResource(this);
@@ -217,6 +224,10 @@ public class ManagedTransactionAssistance implements ManagedConnection, Serializ
     public boolean isHandleRecoveryInternally() {
         return handleRecoveryInternally;
     }
+    
+    public int getMinAgeOfTransactionBeforeRelevantForRecovery() {
+		return minAgeOfTransactionBeforeRelevantForRecovery;
+	}
     
     public File getRecoveryStatePersistenceDirectory() {
         return recoveryStatePersistenceDirectory;

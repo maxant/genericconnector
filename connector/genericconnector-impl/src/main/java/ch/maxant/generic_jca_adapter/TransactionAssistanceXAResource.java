@@ -257,7 +257,7 @@ public class TransactionAssistanceXAResource implements XAResource, Serializable
         List<String> unfinishedTxs = new ArrayList<String>();
         for(File f : conn.getRecoveryStatePersistenceDirectory().listFiles(executeFilter)){
             try {
-                if(getFileAgeInMs(f) > 30000){ //TODO use transaction timeout?? or maybe we just list all EXECUTEs, and TX Manager is clever enough to know its in the middle of committing/rolling back some of them, ie the ones that are not in need of recovery??
+                if(getFileAgeInMs(f) > conn.getMinAgeOfTransactionBeforeRelevantForRecovery()){ //TODO use transaction timeout?? or maybe we just list all EXECUTEs, and TX Manager is clever enough to know its in the middle of committing/rolling back some of them, ie the ones that are not in need of recovery??
                     String content = read(f);
                     unfinishedTxs.add(content);
                     log.log(Level.INFO, "Unfinished transaction found by generic resource adapter: " + f.getName());
@@ -278,7 +278,7 @@ public class TransactionAssistanceXAResource implements XAResource, Serializable
             BasicFileAttributes attr = Files.readAttributes(f.toPath(), BasicFileAttributes.class);
             return System.currentTimeMillis() - attr.creationTime().toMillis();
         }catch(NoSuchFileException e){
-            throw e;
+            throw e; //catch and throw, coz this one is interesting. other IOExceptions arent.
         }catch(IOException e){
             return Integer.MAX_VALUE; //otherwise theres a danger it will never be considered for recovery!
         }

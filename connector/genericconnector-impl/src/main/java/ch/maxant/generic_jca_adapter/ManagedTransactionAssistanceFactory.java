@@ -50,6 +50,8 @@ public class ManagedTransactionAssistanceFactory implements ManagedConnectionFac
 
     private static final long serialVersionUID = 1L;
 
+    private static final int DEFAULT_MIN_AGE_OF_TRANSACTION_BEFORE_RELEVANT_FOR_RECOVERY = 30000;
+
     private final Logger log = Logger.getLogger(this.getClass().getName());
 
     private PrintWriter logWriter;
@@ -59,6 +61,9 @@ public class ManagedTransactionAssistanceFactory implements ManagedConnectionFac
     @ConfigProperty(supportsDynamicUpdates=false, defaultValue="false")
     private String handleRecoveryInternally;
 
+    @ConfigProperty(supportsDynamicUpdates=false, defaultValue=""+DEFAULT_MIN_AGE_OF_TRANSACTION_BEFORE_RELEVANT_FOR_RECOVERY)
+    private String minAgeOfTransactionBeforeRelevantForRecovery;
+    
     @ConfigProperty(supportsDynamicUpdates=false, defaultValue="")
     private String recoveryStatePersistenceDirectory;
     
@@ -111,11 +116,23 @@ public class ManagedTransactionAssistanceFactory implements ManagedConnectionFac
     public ManagedConnection createManagedConnection(Subject subject, ConnectionRequestInfo cxRequestInfo) throws ResourceException {
         lazyInit();
         CommitRollbackRecoveryCallback callback = ((GenericResourceAdapter)this.resourceAdapter).getCommitRollbackRecoveryCallback(id);
-        return new ManagedTransactionAssistance(callback, isHandleRecoveryInternally(), recoveryStatePersistenceDirectoryFile, id);
+        return new ManagedTransactionAssistance(callback, isHandleRecoveryInternally(), getMinAgeOfTransactionBeforeRelevantForRecovery(), recoveryStatePersistenceDirectoryFile, id);
     }
 
     private Boolean isHandleRecoveryInternally() {
         return Boolean.valueOf(handleRecoveryInternally);
+    }
+    
+    private int getMinAgeOfTransactionBeforeRelevantForRecovery(){
+    	if(minAgeOfTransactionBeforeRelevantForRecovery == null){
+    		return DEFAULT_MIN_AGE_OF_TRANSACTION_BEFORE_RELEVANT_FOR_RECOVERY;
+    	}
+    	try{
+    		return Integer.parseInt(minAgeOfTransactionBeforeRelevantForRecovery);
+    	}catch(Exception e){
+    		log.warning("Unable to parse value '" + minAgeOfTransactionBeforeRelevantForRecovery + "' for minAgeOfTransactionBeforeRelevantForRecovery from generic resource adapter configuration. using valueu " + DEFAULT_MIN_AGE_OF_TRANSACTION_BEFORE_RELEVANT_FOR_RECOVERY + " instead.");
+    		return DEFAULT_MIN_AGE_OF_TRANSACTION_BEFORE_RELEVANT_FOR_RECOVERY;
+    	}
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
@@ -160,7 +177,7 @@ public class ManagedTransactionAssistanceFactory implements ManagedConnectionFac
             throws ResourceException {
         this.resourceAdapter = resourceAdapter;
     }
-
+    
     @Override
     public int hashCode() {
         final int prime = 31;
@@ -190,6 +207,11 @@ public class ManagedTransactionAssistanceFactory implements ManagedConnectionFac
             String handleRecoveryInternally) {
         this.handleRecoveryInternally = handleRecoveryInternally;
     }
+    
+    public void setMinAgeOfTransactionBeforeRelevantForRecovery(
+			String minAgeOfTransactionBeforeRelevantForRecovery) {
+		this.minAgeOfTransactionBeforeRelevantForRecovery = minAgeOfTransactionBeforeRelevantForRecovery;
+	}
     
     public void setRecoveryStatePersistenceDirectory(
             String recoveryStatePersistenceDirectory) {
