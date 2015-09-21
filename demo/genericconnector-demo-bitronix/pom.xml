@@ -21,6 +21,11 @@
 			<artifactId>genericconnector-bitronix-api</artifactId>
 			<version>2.0.1-SNAPSHOT</version>
 		</dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+            <version>1.7.12</version>
+        </dependency>
 		<dependency>
 			<groupId>mysql</groupId>
 			<artifactId>mysql-connector-java</artifactId>
