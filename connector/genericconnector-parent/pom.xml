@@ -26,6 +26,8 @@
         <module>../genericconnector-api</module>
         <module>../genericconnector-impl</module>
         <module>../genericconnector-rar</module>
+        <module>../genericconnector-bitronix-api</module>
+        <module>../genericconnector-bitronix-impl</module>
 	</modules>
 
     <dependencies>

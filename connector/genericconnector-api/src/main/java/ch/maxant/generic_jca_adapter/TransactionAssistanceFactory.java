@@ -20,21 +20,12 @@ import java.io.Serializable;
 import java.util.Objects;
 
 import javax.resource.Referenceable;
-import javax.resource.ResourceException;
 
 /**
  * The resource injected into say a Servlet or EJB.  Used to bind a resource into
  * the active XA transaction.
  */
-public interface TransactionAssistanceFactory extends Serializable, Referenceable {
-
-    /**
-     * Get transaction assistant from factory so that a callback can be 
-     * bound into the transaction as well as recovery which is controlled
-     * by the app server's transaction manager.
-     * @exception ResourceException Thrown if an assistant can't be obtained
-     */
-    public TransactionAssistant getTransactionAssistant() throws ResourceException;
+public interface TransactionAssistanceFactory extends Serializable, Referenceable, BasicTransactionAssistanceFactory {
 
     /** The application must register a callback
      * which can be used to commit or rollback transactions
@@ -54,7 +45,7 @@ public interface TransactionAssistanceFactory extends Serializable, Referenceabl
 
     /** Classes with this interface are registered with the 
         TransactionAssistanceFactory. */
-    public static interface CommitRollbackRecoveryCallback {
+    public static interface CommitRollbackRecoveryCallback extends CommitRollbackCallback {
         
         /** The container will call this function during
          * recovery which should call the EIS and must return 
@@ -64,20 +55,6 @@ public interface TransactionAssistanceFactory extends Serializable, Referenceabl
          * state internally, then this method will not
          * be called and can have an empty implementation. */
         String[] getTransactionsInNeedOfRecovery();
-
-        /** The container will call this function 
-         * to commit a transaction that was successful.
-         * The implementation of this method should
-         * call the EIS in order to commit
-         * the transaction. */
-        void commit(String txid) throws Exception;
-        
-        /** The container will call this function 
-         * to rollback an unsuccessful transaction.
-         * The implementation of this method should
-         * call the EIS in order to rollback
-         * the transaction. */
-        void rollback(String txid) throws Exception;
 
         /** Builder enabling use of Java 8 SAMs */ 
         public static class Builder {
