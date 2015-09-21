@@ -39,5 +39,11 @@ public final class BitronixTransactionConfigurator {
 			}
 		});
 	}
+
+	/** when your application shutsdown, you should unregister all services that were setup using {@link #setup(String, CommitRollbackHandler)} 
+	 * or {@link #setup(String, CommitRollbackHandler, long, File)} */
+	public static void unregisterMicroserviceResourceFactory(String name) {
+		MicroserviceResourceProducer.unregisterMicroserviceResourceFactory(name);		
+	}
 	
 }

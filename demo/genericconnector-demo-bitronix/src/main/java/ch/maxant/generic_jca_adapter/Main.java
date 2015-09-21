@@ -84,7 +84,7 @@ public class Main {
         }
 
         //container shutdown
-		MicroserviceResourceProducer.unregisterMicroserviceResourceFactory("xa/ms1");
+		BitronixTransactionConfigurator.unregisterMicroserviceResourceFactory("xa/ms1");
         rl.shutdown();
         tm.shutdown();
     }
