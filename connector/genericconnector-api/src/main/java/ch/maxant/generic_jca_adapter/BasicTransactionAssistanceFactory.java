@@ -16,10 +16,6 @@
  */
 package ch.maxant.generic_jca_adapter;
 
-import java.io.Serializable;
-import java.util.Objects;
-
-import javax.resource.Referenceable;
 import javax.resource.ResourceException;
 
 /**

@@ -1,0 +1,115 @@
+<?xml version="1.0" ?><wsdl:definitions xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" xmlns:tns="http://letterwriter.jca_demo.maxant.ch/" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:ns1="http://schemas.xmlsoap.org/soap/http" name="LetterWebServiceService" targetNamespace="http://letterwriter.jca_demo.maxant.ch/">
+  <wsdl:types>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:tns="http://letterwriter.jca_demo.maxant.ch/" attributeFormDefault="unqualified" elementFormDefault="unqualified" targetNamespace="http://letterwriter.jca_demo.maxant.ch/">
+  <xs:element name="cancelLetter" type="tns:cancelLetter"></xs:element>
+  <xs:element name="cancelLetterResponse" type="tns:cancelLetterResponse"></xs:element>
+  <xs:element name="writeLetter" type="tns:writeLetter"></xs:element>
+  <xs:element name="writeLetterResponse" type="tns:writeLetterResponse"></xs:element>
+  <xs:complexType name="cancelLetter">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="txId" type="xs:string"></xs:element>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="cancelLetterResponse">
+    <xs:sequence></xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="writeLetter">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="txid" type="xs:string"></xs:element>
+      <xs:element minOccurs="0" name="referenceNumber" type="xs:string"></xs:element>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="writeLetterResponse">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="return" type="xs:string"></xs:element>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="IOException" type="tns:IOException"></xs:element>
+  <xs:complexType name="IOException">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="message" type="xs:string"></xs:element>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="Exception" type="tns:Exception"></xs:element>
+  <xs:complexType name="Exception">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="message" type="xs:string"></xs:element>
+    </xs:sequence>
+  </xs:complexType>
+</xs:schema>
+  </wsdl:types>
+  <wsdl:message name="cancelLetterResponse">
+    <wsdl:part element="tns:cancelLetterResponse" name="parameters">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:message name="IOException">
+    <wsdl:part element="tns:IOException" name="IOException">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:message name="writeLetterResponse">
+    <wsdl:part element="tns:writeLetterResponse" name="parameters">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:message name="cancelLetter">
+    <wsdl:part element="tns:cancelLetter" name="parameters">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:message name="writeLetter">
+    <wsdl:part element="tns:writeLetter" name="parameters">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:message name="Exception">
+    <wsdl:part element="tns:Exception" name="Exception">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:portType name="LetterWriter">
+    <wsdl:operation name="cancelLetter">
+      <wsdl:input message="tns:cancelLetter" name="cancelLetter">
+    </wsdl:input>
+      <wsdl:output message="tns:cancelLetterResponse" name="cancelLetterResponse">
+    </wsdl:output>
+      <wsdl:fault message="tns:IOException" name="IOException">
+    </wsdl:fault>
+    </wsdl:operation>
+    <wsdl:operation name="writeLetter">
+      <wsdl:input message="tns:writeLetter" name="writeLetter">
+    </wsdl:input>
+      <wsdl:output message="tns:writeLetterResponse" name="writeLetterResponse">
+    </wsdl:output>
+      <wsdl:fault message="tns:Exception" name="Exception">
+    </wsdl:fault>
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:binding name="LetterWebServiceServiceSoapBinding" type="tns:LetterWriter">
+    <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"></soap:binding>
+    <wsdl:operation name="cancelLetter">
+      <soap:operation soapAction="" style="document"></soap:operation>
+      <wsdl:input name="cancelLetter">
+        <soap:body use="literal"></soap:body>
+      </wsdl:input>
+      <wsdl:output name="cancelLetterResponse">
+        <soap:body use="literal"></soap:body>
+      </wsdl:output>
+      <wsdl:fault name="IOException">
+        <soap:fault name="IOException" use="literal"></soap:fault>
+      </wsdl:fault>
+    </wsdl:operation>
+    <wsdl:operation name="writeLetter">
+      <soap:operation soapAction="" style="document"></soap:operation>
+      <wsdl:input name="writeLetter">
+        <soap:body use="literal"></soap:body>
+      </wsdl:input>
+      <wsdl:output name="writeLetterResponse">
+        <soap:body use="literal"></soap:body>
+      </wsdl:output>
+      <wsdl:fault name="Exception">
+        <soap:fault name="Exception" use="literal"></soap:fault>
+      </wsdl:fault>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:service name="LetterWebServiceService">
+    <wsdl:port binding="tns:LetterWebServiceServiceSoapBinding" name="LetterWriterPort">
+      <soap:address location="http://localhost:8080/genericconnector-demo-letter-webservice/LetterWebService"></soap:address>
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>

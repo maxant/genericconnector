@@ -19,7 +19,6 @@ package ch.maxant.generic_jca_adapter;
 import java.io.File;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 
 import javax.naming.Context;
@@ -29,16 +28,12 @@ import bitronix.tm.BitronixTransaction;
 import bitronix.tm.BitronixTransactionManager;
 import bitronix.tm.TransactionManagerServices;
 import bitronix.tm.jndi.BitronixContext;
-import bitronix.tm.resource.ResourceLoader;
 import ch.maxant.jca_demo.letterwriter.LetterWebServiceService;
 import ch.maxant.jca_demo.letterwriter.LetterWriter;
 
 public class Main {
 
     public static void main(String[] args) throws Exception {
-        ResourceLoader rl = new ResourceLoader();
-        rl.init();
-
         final LetterWriter service = new LetterWebServiceService().getLetterWriterPort(); //take from pool if you want
         CommitRollbackHandler commitRollbackCallback = new CommitRollbackHandler() {
 			@Override
@@ -55,46 +50,47 @@ public class Main {
         {//once per microservice that you want to use - do this when app starts, so that recovery can function immediately
         	BitronixTransactionConfigurator.setup("xa/ms1", commitRollbackCallback, 30000L, new File("."));
         }
+        
+        String username = "john";
 
         BitronixTransactionManager tm = TransactionManagerServices.getTransactionManager();
-
-        {//start of service method
+        tm.begin();
+        BitronixTransaction tx = tm.getCurrentTransaction();
+        
+        try{//start of service method
 	        Context ctx = new BitronixContext();
-	        DataSource ds = (DataSource) ctx.lookup("jdbc/mysql1");
-	
-	        tm.begin();
-	        BitronixTransaction tx = tm.getCurrentTransaction();
 
 	        BasicTransactionAssistanceFactory microserviceFactory = (BasicTransactionAssistanceFactory) ctx.lookup("xa/ms1");
 	        String msResponse = null;
 	        try(TransactionAssistant transactionAssistant = microserviceFactory.getTransactionAssistant()){
 	        	msResponse = transactionAssistant.executeInActiveTransaction(txid->{
-	        		return service.writeLetter(txid, "someReferenceNumber");
+	        		return service.writeLetter(txid, username);
 	        	});
 	        }
 	        
-	        runSql(ds);
-	
-	        tx.rollback(); //commit();
+	        runSql((DataSource) ctx.lookup("jdbc/mysql1"), username);
 	        
-	        System.err.println("got " + msResponse + " from microservice");
+	        if(username == "john"){
+	        	throw new RuntimeException("simulated error");
+	        }
+	        tx.commit();
+	        System.out.println("got " + msResponse + " from microservice");
+        }catch(Exception e){
+        	e.printStackTrace();
+        	tx.rollback();
         }
 
         //container shutdown
 		BitronixTransactionConfigurator.unregisterMicroserviceResourceFactory("xa/ms1");
-        rl.shutdown();
         tm.shutdown();
     }
 
-    private static void runSql(DataSource ds) throws SQLException {
-        Connection conn = ds.getConnection();
-        PreparedStatement stmt = conn.prepareStatement("select 1 from dual");
-        ResultSet rs = stmt.executeQuery();
-        while (rs.next()) {
-            System.out.println(rs.getString(1));
+    private static void runSql(DataSource ds, String username) throws SQLException {
+        try(Connection conn = ds.getConnection()){
+        	try(PreparedStatement stmt = conn.prepareStatement("insert into person(id, name) select max(id)+1, ? from person")){
+        		stmt.setString(1, username);
+        		stmt.executeUpdate();
+        	}
         }
-        rs.close();
-        stmt.close();
-        conn.close();
     }
 }
