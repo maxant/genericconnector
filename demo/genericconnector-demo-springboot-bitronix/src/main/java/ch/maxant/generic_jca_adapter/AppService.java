@@ -18,8 +18,6 @@ based on https://raw.githubusercontent.com/spring-projects/spring-boot/master/sp
 
 package ch.maxant.generic_jca_adapter;
 
-import java.util.Date;
-
 import javax.transaction.Transactional;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,8 +40,8 @@ public class AppService {
 
 		{//write to local database
 			Account acct = new Account();
-			acct.setDob(new Date());
-			acct.setId(5000L);
+			acct.setName(username);
+			acct.setId(5000);
 			this.appRepository.save(acct);
 		}
 

@@ -1,40 +1,34 @@
 package ch.maxant.generic_jca_adapter;
 
-import java.util.Date;
-
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
 
 @Entity
-@Table(name="JEE_PERSON")
+@Table(name="person")
 public class Account {
 
 	@Id
-	@Column(name="ID")
-	private Long id;
+	private Integer id;
 
-	@Temporal(TemporalType.DATE)
-	@Column(name="DOB", nullable = false)
-	private Date dob;
+	@Column
+	private String name;
 
-	public Long getId() {
+	public Integer getId() {
 		return id;
 	}
 
-	public void setId(Long id) {
+	public void setId(Integer id) {
 		this.id = id;
 	}
 
-	public Date getDob() {
-		return dob;
+	public String getName() {
+		return name;
 	}
 
-	public void setDob(Date dob) {
-		this.dob = dob;
+	public void setName(String name) {
+		this.name = name;
 	}
 
 }

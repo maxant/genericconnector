@@ -35,9 +35,6 @@ import ch.maxant.jca_demo.letterwriter.LetterWriter;
 
 public class Main {
 
-	//TODO tomcat + bitronix: http://bitronix-transaction-manager.10986.n7.nabble.com/tomcat-7-0-26-and-bitronix-td1155.html
-	//TODO spring boot + bitronix: https://github.com/spring-projects/spring-boot/blob/master/spring-boot-samples/spring-boot-sample-jta-bitronix/src/main/java/sample/bitronix/SampleBitronixApplication.java
-	
     public static void main(String[] args) throws Exception {
         ResourceLoader rl = new ResourceLoader();
         rl.init();

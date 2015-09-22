@@ -1,0 +1,87 @@
+<html>
+<head>
+    <script src="run_prettify.js"></script>
+    <style type="text/css">
+    body {
+        font-size: 16px;
+        font-weight: 300;
+        font-family: ProximaNova, helvetica, arial;
+        line-height: 150%;
+    }
+    </style>
+</head>
+<body>
+    
+<h2>
+Global Data Consistency, Microservices and Spring Boot
+</h2>
+Ant Kutschera, 201509
+<br/>
+<br/>
+
+You will often build services which need to make several calls to several (micro-) services, or write to a database and call a microservice.  But what happens if there is an 
+error during a call to one of the services, or if the database commit fails, after you have called a service?  If a service call ends up writing data, you could end up with 
+a globally inconsistent state.  You will need to compensate for that, and typically that compensation is something that is hand written and complex.<br/>
+<br/>
+In a 
+<a href='http://blog.maxant.co.uk/pebble/2015/08/04/1438716480000.html' target='_blank'>recent article</a>
+I wrote about how I have built a generic JCA connector which allows you to bind things like calls to microservices into global distributed transactions under the control
+of Java EE application servers, precisely so that you don't have to write your own framework code for handling failures during distributed transactions.  The connector takes
+care of ensuring that your data is eventually consistent.<br/>
+<br/>
+I have now extended the library to include automatic handling of commit / rollback / recovery into <b>Tomcat</b> or <b>Spring Boot</b> applications.<br/>
+<br/>
+Arun Gupta of Red Hat writes about different microservice patterns in the
+<a href='https://dzone.com/servlet/storage/?file=293353' target='_blank'>DZone Getting Started with Microservices Refcard</a>.
+Indeed the majority of those patterns show a microservice calling multiple other microservices. In all these cases, global data consistency becomes relevant, i.e. ensuring
+that failure in one of the latter calls to a microservice is either compensated, or the commital of the call is re-attempted, until all the data in all the microservices 
+is again consistent.
+<br/>
+<br/>
+The first step in making sure your data remains eventually consistent is to add a transaction manager to your service.  If you are writing a composite microservice, then the
+JVM in which it runs needs to have a transaction manager.  I have chosen to use 
+<a href='https://github.com/bitronix/btm' target="_blank">Bitronix</a> because it can be used with Tomcat and Spring.  
+
+
+http://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-jta.html
+
+https://github.com/spring-projects/spring-boot/tree/master/spring-boot-samples/spring-boot-sample-jta-bitronix
+
+
+
+Here are some links for Getting Bitronix to work with Spring, Spring Boot or 
+Tomcat is mostly a matter of ocnfiguration, for example 
+
+
+
+
+
+
+<br/>
+Copyright &copy;2015, Ant Kutschera, with thanks to <a href='http://www.codeblock.ch' target='_blank'>Claude Gex</a> for his review.
+
+
+
+
+
+
+
+</body>
+</html>
+
+
+<hr>
+------------------------------------------------------------------------------
+
+    //TODO tomcat + bitronix: http://bitronix-transaction-manager.10986.n7.nabble.com/tomcat-7-0-26-and-bitronix-td1155.html
+    //TODO http://arxiv.org/pdf/1509.05393v2.pdf
+    //TODO https://dzone.com/servlet/storage/?file=293353
+    //TODO unit tests for all the new stuff. 
+    //TODO coverage?
+    //TODO ensure all files have copyright
+    //TODO update ALL readme.md
+    //TODO write new blog
+    //TODO finish testing recovery properly
+    //TODO update old blog to refer to new blog
+    //TODO publish also on twitter
+    
