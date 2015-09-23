@@ -29,6 +29,7 @@
         <module>../genericconnector-demo-ear</module>
         <module>../genericconnector-demo-bitronix</module>
         <module>../genericconnector-demo-springboot-bitronix</module>
+        <module>../genericconnector-demo-tomcat-bitronix</module>
 	</modules>
 
     <dependencies>

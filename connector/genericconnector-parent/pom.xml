@@ -28,6 +28,7 @@
         <module>../genericconnector-rar</module>
         <module>../genericconnector-bitronix-api</module>
         <module>../genericconnector-bitronix-impl</module>
+        <module>../genericconnector-atomikos-impl</module>
 	</modules>
 
     <dependencies>

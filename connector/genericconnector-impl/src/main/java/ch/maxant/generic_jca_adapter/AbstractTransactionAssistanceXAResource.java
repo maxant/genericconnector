@@ -50,7 +50,7 @@ public abstract class AbstractTransactionAssistanceXAResource implements XAResou
         }
     };
 
-    protected final Logger log = Logger.getLogger(this.getClass().getName());
+    protected static final Logger log = Logger.getLogger(AbstractTransactionAssistanceXAResource.class.getName());
 
     /** default timeout, as well as that set by the system */
     protected int timeout = 300;

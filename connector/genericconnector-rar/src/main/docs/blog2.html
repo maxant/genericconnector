@@ -38,20 +38,24 @@ that failure in one of the latter calls to a microservice is either compensated,
 is again consistent.
 <br/>
 <br/>
+
+
+standalone demo:
+https://github.com/maxant/genericconnector/blob/master/demo/genericconnector-demo-bitronix/src/main/java/ch/maxant/generic_jca_adapter/Main.java
+
+
+
 The first step in making sure your data remain eventually consistent is to add a transaction manager to your composite service. I have chosen to use 
 <a href='https://github.com/bitronix/btm' target="_blank">Bitronix</a> because it can be used with Tomcat and Spring.  Examples of how to integrate my library 
 with Spring Boot can be found
 <a href='https://github.com/maxant/genericconnector/blob/master/demo/genericconnector-demo-springboot-bitronix/src/main/java/ch/maxant/generic_jca_adapter/DemoSpringBootApplication.java' target='_blank'>here, for a standalone application</a>, or
 <a href='https://github.com/maxant/genericconnector/blob/master/demo/genericconnector-demo-springboot-bitronix/src/main/java/ch/maxant/generic_jca_adapter/DemoSpringBootServer.java' target='_blank'>here, for a standalone microservice</a>.
 An example of integrating with Tomcat 
-<a href='https://github.com/maxant/genericconnector/blob/master/demo/genericconnector-demo-springboot-bitronix/src/main/java/ch/maxant/generic_jca_adapter/DemoSpringBootServer.java' target='_blank'>here, for a standalone microservice</a>.
+https://github.com/maxant/genericconnector/tree/master/demo/genericconnector-demo-tomcat-bitronix
 
-
-
+lack of docs:
 https://github.com/bitronix/btm/issues/51
 
-
-https://github.com/maxant/genericconnector/blob/master/demo/genericconnector-demo-bitronix/src/main/java/ch/maxant/generic_jca_adapter/Main.java
 
 
 
@@ -75,7 +79,7 @@ Tomcat is mostly a matter of ocnfiguration, for example
 
 
 
-
+getting it to run (readme.md):
 
 context.xml is in meta-inf and has transaction defined
 

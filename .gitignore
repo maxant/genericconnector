@@ -6,4 +6,5 @@
 **/.classpath
 btm1.tlog
 btm2.tlog
-
+tmlog*.log
+*.tm*.epoch
