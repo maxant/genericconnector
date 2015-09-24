@@ -22,14 +22,17 @@
     </properties>
 
 	<modules>
-        <module>../genericconnector-demo-acquirer-webservice</module>
-        <module>../genericconnector-demo-bookingsystem-webservice</module>
-        <module>../genericconnector-demo-letter-webservice</module>
-        <module>../genericconnector-demo-client</module>
-        <module>../genericconnector-demo-ear</module>
-        <module>../genericconnector-demo-bitronix</module>
+        <module>../genericconnector-demo-webservice-acquirer</module>
+        <module>../genericconnector-demo-webservice-bookingsystem</module>
+        <module>../genericconnector-demo-webservice-letter</module>
+        <module>../genericconnector-demo-javaee-client</module>
+        <module>../genericconnector-demo-javaee-ear</module>
+        <module>../genericconnector-demo-standalone-bitronix</module>
+        <module>../genericconnector-demo-standalone-atomikos</module>
         <module>../genericconnector-demo-springboot-bitronix</module>
+        <module>../genericconnector-demo-springboot-atomikos</module>
         <module>../genericconnector-demo-tomcat-bitronix</module>
+        <module>../genericconnector-demo-tomcat-atomikos</module>
 	</modules>
 
     <dependencies>
