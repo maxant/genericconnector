@@ -22,9 +22,7 @@ import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 
-/** subclasses must provide hooks for committing / rolling back the transaction. subclasses MUST be stateless, as the instance will be used 
- * for committing and rolling back ALL resources. it must ALSO be thread safe, as it may be called by multiple threads concurrently! */
-public abstract class CommitRollbackHandler implements UnderlyingConnection, Serializable {
+public abstract class UnderlyingConnectionImpl implements UnderlyingConnection, Serializable {
 
 	private static final long serialVersionUID = 1L;
 
@@ -73,5 +71,5 @@ public abstract class CommitRollbackHandler implements UnderlyingConnection, Ser
 	public String[] getTransactionsInNeedOfRecovery() {
 		return new String[]{};
 	}
-	
+
 }

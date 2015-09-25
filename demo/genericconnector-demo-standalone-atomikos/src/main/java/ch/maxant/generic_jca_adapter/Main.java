@@ -16,7 +16,6 @@
  */
 package ch.maxant.generic_jca_adapter;
 
-import java.io.File;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -36,7 +35,7 @@ import ch.maxant.jca_demo.letterwriter.LetterWriter;
 public class Main {
 
     public static void main(String[] args) throws Exception {
-        CommitRollbackHandler commitRollbackCallback = new CommitRollbackHandler() {
+        CommitRollbackCallback commitRollbackCallback = new CommitRollbackCallback() {
 			private static final long serialVersionUID = 1L;
 			@Override
 			public void rollback(String txid) throws Exception {
@@ -52,7 +51,7 @@ public class Main {
 		};
 
         {//once per microservice that you want to use - do this when app starts, so that recovery can function immediately
-        	AtomikosTransactionConfigurator.setup("xa/ms1", commitRollbackCallback, 30000L, new File("."));
+        	AtomikosTransactionConfigurator.setup("xa/ms1", commitRollbackCallback);
         }
 
         //setup datasource

@@ -8,9 +8,9 @@ import com.atomikos.icatch.jta.UserTransactionManager;
 
 public class AtomikosTransactionAssistantImpl implements TransactionAssistant {
 
-	private MicroserviceResource ms;
+	private MicroserviceXAResource ms;
 
-	public AtomikosTransactionAssistantImpl(MicroserviceResource ms) {
+	public AtomikosTransactionAssistantImpl(MicroserviceXAResource ms) {
 		this.ms = ms;
 	}
 

@@ -22,19 +22,22 @@ public final class BitronixTransactionConfigurator {
 
 	private BitronixTransactionConfigurator() {}
 	
-	/** one time configuration required for setting up a microservice in a transactional environment. uses default of 30 seconds
-     * minAgeOfTransactionInMSBeforeRelevantForRecovery and the current directory for the recoveryStatePersistenceDirectory. */
-	public static void setup(String jndiName, CommitRollbackHandler commitRollbackCallback){
-		setup(jndiName, commitRollbackCallback, 30000L, new File("."));
-	}
-
-	/** one time configuration required for setting up a microservice in a transactional environment */
-	public static void setup(String jndiName, final CommitRollbackHandler commitRollbackHandler, long minAgeOfTransactionInMSBeforeRelevantForRecovery, File recoveryStatePersistenceDirectory){
-    	MicroserviceResource.configure(minAgeOfTransactionInMSBeforeRelevantForRecovery, recoveryStatePersistenceDirectory);
+	/** one time configuration required for setting up a microservice in a transactional environment. */
+	public static void setup(final String jndiName, final CommitRollbackCallback commitRollbackCallback){
 		MicroserviceResourceProducer.registerMicroserviceResourceFactory(jndiName, new MicroserviceResourceFactory() {
 			@Override
-			public MicroserviceResource build() {
-				MicroserviceResource msr = new MicroserviceResource(commitRollbackHandler);
+			public MicroserviceXAResource build() {
+				MicroserviceXAResource msr = new MicroserviceXAResource(jndiName, new UnderlyingConnectionImpl() {
+					private static final long serialVersionUID = 1L;
+					@Override
+					public void rollback(String txid) throws Exception {
+						commitRollbackCallback.rollback(txid);
+					}
+					@Override
+					public void commit(String txid) throws Exception {
+						commitRollbackCallback.commit(txid);
+					}
+				});
 				return msr;
 			}
 		});

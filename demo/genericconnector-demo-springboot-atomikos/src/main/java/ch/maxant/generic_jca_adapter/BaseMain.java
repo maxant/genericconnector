@@ -22,6 +22,7 @@ public abstract class BaseMain {
 
 	protected static void setupCommitRollbackHandlerForMicroserviceWhichIsCalled() {
     	{//setup microservice that we want to call within a transaction
+    		
     		CommitRollbackCallback commitRollbackCallback = new CommitRollbackCallback() {
 				private static final long serialVersionUID = 1L;
 				@Override
@@ -34,7 +35,7 @@ public abstract class BaseMain {
     				//nothing to do, this service autocommits.
     			}
     		};
-    		BitronixTransactionConfigurator.setup("xa/ms1", commitRollbackCallback);
+    		AtomikosTransactionConfigurator.setup("xa/ms1", commitRollbackCallback);
     	}
 
     	//when app shutsdown, we want to deregister the microservice from bitronix's singleton transaction manager.
@@ -44,7 +45,7 @@ public abstract class BaseMain {
     		@Override
     		public void run() {
     			//shutdown
-    			BitronixTransactionConfigurator.unregisterMicroserviceResourceFactory("xa/ms1");
+    			AtomikosTransactionConfigurator.unregisterMicroserviceResourceFactory("xa/ms1");
     		}
     	});
 	

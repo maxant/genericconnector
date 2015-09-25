@@ -12,11 +12,10 @@
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.
-
  */
 package ch.maxant.generic_jca_adapter;
 
-public interface MicroserviceResourceFactory {
+import org.springframework.data.jpa.repository.JpaRepository;
 
-	MicroserviceXAResource build();
+public interface AppRepository extends JpaRepository<Account, Long> {
 }

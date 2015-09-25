@@ -1,6 +1,8 @@
 package ch.maxant.generic_jca_adapter;
 
-public interface CommitRollbackCallback {
+import java.io.Serializable;
+
+public interface CommitRollbackCallback extends Serializable {
 
     /** The container will call this function 
      * to commit a transaction that was successful.

@@ -28,18 +28,11 @@ public final class AtomikosTransactionConfigurator {
 	
 	private static Map<String, RecoverableMSResource> resources = new HashMap<String, RecoverableMSResource>();
 	
-	/** one time configuration required for setting up a microservice in a transactional environment. uses default of 30 seconds
-     * minAgeOfTransactionInMSBeforeRelevantForRecovery and the current directory for the recoveryStatePersistenceDirectory. */
-	public static void setup(String jndiName, CommitRollbackHandler commitRollbackCallback){
-		setup(jndiName, commitRollbackCallback, 30000L, new File("."));
-	}
-
-	/** one time configuration required for setting up a microservice in a transactional environment */
-	public static void setup(String jndiName, final CommitRollbackHandler commitRollbackHandler, long minAgeOfTransactionInMSBeforeRelevantForRecovery, File recoveryStatePersistenceDirectory){
-    	MicroserviceResource.configure(minAgeOfTransactionInMSBeforeRelevantForRecovery, recoveryStatePersistenceDirectory);
+	/** one time configuration required for setting up a microservice in a transactional environment. */
+	public static void setup(String jndiName, final CommitRollbackCallback commitRollbackCallback){
     	UserTransactionServiceImp utsi = new UserTransactionServiceImp();
-        MicroserviceResource ms = new MicroserviceResource(commitRollbackHandler);
-		RecoverableMSResource resource = new RecoverableMSResource(jndiName, ms);
+        MicroserviceXAResource ms = new MicroserviceXAResourceImpl(jndiName, commitRollbackCallback);
+		RecoverableMSResource resource = new RecoverableMSResource(ms);
 		resources.put(jndiName, resource);
 		utsi.registerResource(resource);
 	}
@@ -51,8 +44,8 @@ public final class AtomikosTransactionConfigurator {
 		utsi.removeResource(resources.remove(name));
 	}
 	
-	static CommitRollbackHandler getHandler(String jndiName){
-		return resources.get(jndiName).getMicroserviceResource().getCommitRollbackHandler();
+	static CommitRollbackCallback getCommitRollbackCallback(String jndiName){
+		return resources.get(jndiName).getMicroserviceResource().getUnderlyingConnection();
 	}
 	
 }

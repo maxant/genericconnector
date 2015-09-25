@@ -16,7 +16,6 @@
  */
 package ch.maxant.generic_jca_adapter;
 
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -24,13 +23,12 @@ import javax.naming.NamingException;
 import javax.naming.Reference;
 import javax.naming.StringRefAddr;
 import javax.resource.ResourceException;
+import javax.transaction.SystemException;
 import javax.transaction.xa.XAResource;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bitronix.tm.BitronixTransaction;
-import bitronix.tm.TransactionManagerServices;
 import bitronix.tm.internal.BitronixRuntimeException;
 import bitronix.tm.internal.XAResourceHolderState;
 import bitronix.tm.recovery.RecoveryException;
@@ -38,6 +36,7 @@ import bitronix.tm.resource.ResourceObjectFactory;
 import bitronix.tm.resource.ResourceRegistrar;
 import bitronix.tm.resource.common.RecoveryXAResourceHolder;
 import bitronix.tm.resource.common.ResourceBean;
+import bitronix.tm.resource.common.TransactionContextHelper;
 import bitronix.tm.resource.common.XAResourceProducer;
 import bitronix.tm.resource.ehcache.EhCacheXAResourceProducer;
 
@@ -55,8 +54,7 @@ public class MicroserviceResourceProducer extends ResourceBean implements XAReso
 
 	private MicroserviceResourceFactory msrFactory;
 
-	//TODO change to a concurrent set of some kind
-	private ConcurrentMap<MicroserviceResourceHolder, MicroserviceResourceHolder> resourceHolders = new ConcurrentHashMap<MicroserviceResourceHolder, MicroserviceResourceHolder>();
+	private ConcurrentMap<XAResource, MicroserviceResourceHolder> resourceHolders = new ConcurrentHashMap<XAResource, MicroserviceResourceHolder>();
 
     private MicroserviceResourceProducer() {
         setApplyTransactionTimeout(true);
@@ -138,12 +136,7 @@ public class MicroserviceResourceProducer extends ResourceBean implements XAReso
      */
     @Override
     public MicroserviceResourceHolder findXAResourceHolder(XAResource xaResource) {
-    	for(Map.Entry<MicroserviceResourceHolder, MicroserviceResourceHolder> e : this.resourceHolders.entrySet()){
-    		if(e.getKey().getXAResource().equals(xaResource)){
-    			return e.getValue();
-    		}
-    	}
-    	return null;
+    	return this.resourceHolders.get(xaResource);
     }
 
     /**
@@ -190,28 +183,28 @@ public class MicroserviceResourceProducer extends ResourceBean implements XAReso
 
     @Override
     public TransactionAssistant getTransactionAssistant() throws ResourceException {
-    	final MicroserviceResource microserviceResource = msrFactory.build();
-    	MicroserviceResourceHolder resourceHolder = new MicroserviceResourceHolder(microserviceResource, this);
-    	resourceHolders.put(resourceHolder, resourceHolder);
-        BitronixTransaction tx = TransactionManagerServices.getTransactionManager().getCurrentTransaction();
+    	final MicroserviceXAResource microserviceResource = msrFactory.build();
+    	final MicroserviceResourceHolder resourceHolder = new MicroserviceResourceHolder(microserviceResource, this);
+    	resourceHolders.put(resourceHolder.getXAResource(), resourceHolder);
         try {
-			tx.enlistResource(microserviceResource);
+        	TransactionContextHelper.enlistInCurrentTransaction(resourceHolder);
 		} catch (Exception e) {
 			throw new ResourceException("Unable to enlist resource into transaction", e);
 		}
-        return new BitronixTransactionAssistantImpl(this, resourceHolder) {
+        return new TransactionAssistant() {
 			@Override
 			public <T> T executeInActiveTransaction(ExecuteCallback<T> c) throws Exception {
 				return microserviceResource.executeInActiveTransaction(c);
 			}
 			@Override
 			public void close() {
-				// TODO anything special to do here?
+	        	try {
+					TransactionContextHelper.delistFromCurrentTransaction(resourceHolder);
+				} catch (SystemException e) {
+					throw new RuntimeException(e);
+				}
+	        	resourceHolders.remove(resourceHolder.getXAResource());
 			}
 		};
     }
-
-	public void closeResourceHolder(MicroserviceResourceHolder resourceHolder) {
-		resourceHolders.remove(resourceHolder);
-	}
 }

@@ -12,12 +12,13 @@ import com.atomikos.icatch.config.UserTransactionServiceImp;
 import com.atomikos.icatch.jta.UserTransactionManager;
 import com.mysql.jdbc.jdbc2.optional.MysqlXADataSource;
 
+/** working out how to use atomikos, before building {@link Main} */
 public class TestAtomikos {
 
 	public static void main(String[] args) throws Exception {
 
-        MicroserviceResource ms = new MicroserviceResource(new CommitRollbackHandler() {
-			private static final long serialVersionUID = 1L;
+        MicroserviceXAResource ms = new MicroserviceXAResource("xa/ms1", new UnderlyingConnectionImpl() {
+        	private static final long serialVersionUID = 1L;
 			@Override
 			public void rollback(String txid) throws Exception {
 				System.out.println(); //TODO
@@ -38,7 +39,7 @@ public class TestAtomikos {
 		
 		utsi.registerResource(mysqlResource);
 		
-		utsi.registerResource(new RecoverableMSResource("xa/ms1", ms));
+		utsi.registerResource(new RecoverableMSResource(ms));
 		
         utsi.init();
 		

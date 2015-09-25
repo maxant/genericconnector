@@ -16,7 +16,6 @@
  */
 package ch.maxant.generic_jca_adapter;
 
-import java.io.File;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -39,7 +38,6 @@ import javax.transaction.UserTransaction;
 
 import bitronix.tm.TransactionManagerServices;
 import bitronix.tm.jndi.BitronixContext;
-import bitronix.tm.resource.ResourceLoader;
 import ch.maxant.jca_demo.letterwriter.LetterWebServiceService;
 import ch.maxant.jca_demo.letterwriter.LetterWriter;
 
@@ -49,7 +47,6 @@ import ch.maxant.jca_demo.letterwriter.LetterWriter;
 public class CreateUserServlet extends HttpServlet implements ServletContextListener {
 	
 	private static final long serialVersionUID = 1L;
-	private ResourceLoader rl;
 
 	@Override
 	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
@@ -116,7 +113,8 @@ public class CreateUserServlet extends HttpServlet implements ServletContextList
 		//once per microservice that you want to use - do this when app starts, so that recovery can function immediately
 		{
 			final LetterWriter service = new LetterWebServiceService().getLetterWriterPort(); //take from pool if you want
-			CommitRollbackHandler commitRollbackCallback = new CommitRollbackHandler() {
+			CommitRollbackCallback commitRollbackCallback = new CommitRollbackCallback() {
+				private static final long serialVersionUID = 1L;
 				@Override
 				public void rollback(String txid) throws Exception {
 					//compensate by cancelling the letter
@@ -127,7 +125,7 @@ public class CreateUserServlet extends HttpServlet implements ServletContextList
 					//nothing to do, this service autocommits.
 				}
 			};
-			BitronixTransactionConfigurator.setup("xa/ms1", commitRollbackCallback, 30000L, new File("."));
+			BitronixTransactionConfigurator.setup("xa/ms1", commitRollbackCallback);
 		}
 	}
 

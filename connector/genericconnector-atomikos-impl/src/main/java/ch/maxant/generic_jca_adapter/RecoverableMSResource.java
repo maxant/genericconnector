@@ -7,10 +7,10 @@ import com.atomikos.datasource.xa.XATransactionalResource;
 
 public class RecoverableMSResource extends XATransactionalResource {
 
-	private MicroserviceResource ms;
+	private MicroserviceXAResource ms;
 
-	public RecoverableMSResource(String uniqueName, MicroserviceResource ms) {
-		super(uniqueName);
+	public RecoverableMSResource(MicroserviceXAResource ms) {
+		super(ms.getJndiName());
 		this.ms = ms;
 	}
 
@@ -19,7 +19,7 @@ public class RecoverableMSResource extends XATransactionalResource {
 		return ms;
 	}
 
-	MicroserviceResource getMicroserviceResource() {
+	MicroserviceXAResource getMicroserviceResource() {
 		return ms;
 	}
 	

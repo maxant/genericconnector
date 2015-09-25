@@ -6,7 +6,7 @@
 	    <artifactId>spring-boot-starter-parent</artifactId>
 	    <version>1.2.6.RELEASE</version>
 	</parent>
-	<artifactId>genericconnector-demo-springboot-bitronix</artifactId>
+	<artifactId>genericconnector-demo-springboot-atomikos</artifactId>
 	<packaging>jar</packaging>
     <url>http://blog.maxant.co.uk/pebble/2015/08/04/1438716480000.html</url>
 
@@ -33,7 +33,7 @@
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-jta-bitronix</artifactId>
+			<artifactId>spring-boot-starter-jta-atomikos</artifactId>
 		</dependency>
 		<dependency>
             <groupId>org.springframework.boot</groupId>
@@ -47,7 +47,7 @@
 		</dependency>
 		<dependency>
 			<groupId>ch.maxant</groupId>
-			<artifactId>genericconnector-bitronix-api</artifactId>
+			<artifactId>genericconnector-atomikos-api</artifactId>
 			<version>2.0.1-SNAPSHOT</version>
 		</dependency>
 		<dependency>

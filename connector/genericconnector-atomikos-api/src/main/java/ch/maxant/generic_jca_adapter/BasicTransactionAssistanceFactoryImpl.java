@@ -6,19 +6,19 @@ import javax.transaction.Transaction;
 
 import com.atomikos.icatch.jta.UserTransactionManager;
 
-public class BasicTransactionAssistanceFactoryImpl implements BasicTransactionAssistanceFactory {
+class BasicTransactionAssistanceFactoryImpl implements BasicTransactionAssistanceFactory {
 
 	private String jndiName;
 
-	public BasicTransactionAssistanceFactoryImpl(String jndiName) {
+	BasicTransactionAssistanceFactoryImpl(String jndiName) {
 		this.jndiName = jndiName;
 	}
 
 	@Override
 	public TransactionAssistant getTransactionAssistant() throws ResourceException {
 		//enlist a new resource into the transaction. it will be delisted, when its closed.
-		CommitRollbackHandler commitRollbackCallback = AtomikosTransactionConfigurator.getHandler(jndiName);
-		MicroserviceResource ms = new MicroserviceResource(commitRollbackCallback);
+		final CommitRollbackCallback commitRollbackCallback = AtomikosTransactionConfigurator.getCommitRollbackCallback(jndiName);
+		MicroserviceXAResource ms = new MicroserviceXAResourceImpl(jndiName, commitRollbackCallback);
 		UserTransactionManager utm = new UserTransactionManager();
 		try {
 			if(utm.getStatus() == Status.STATUS_NO_TRANSACTION){
@@ -31,4 +31,5 @@ public class BasicTransactionAssistanceFactoryImpl implements BasicTransactionAs
 			throw new ResourceException("Unable to get transaction status", e);
 		}
 	}
+	
 }

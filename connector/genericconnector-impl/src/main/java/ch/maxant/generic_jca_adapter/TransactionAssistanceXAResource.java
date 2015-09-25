@@ -25,7 +25,7 @@ import javax.transaction.xa.XAResource;
 
 /**
  * {@link XAResource} used by the transaction assistance JCA Adapter to bind callbacks 
- * into transactions.
+ * into transactions. Used by Java EE.
  */
 public class TransactionAssistanceXAResource extends AbstractTransactionAssistanceXAResource {
 
@@ -56,7 +56,8 @@ public class TransactionAssistanceXAResource extends AbstractTransactionAssistan
     @Override
     protected UnderlyingConnection getUnderlyingConnection() {
     	return new UnderlyingConnection() {
-			
+			private static final long serialVersionUID = 1L;
+
 			@Override
 			public void rollback(String txid) throws Exception {
 				conn.getCommitRollbackRecoveryCallback().rollback(txid);
