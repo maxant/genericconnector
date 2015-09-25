@@ -32,11 +32,11 @@ public class TestAtomikos {
         mysql.setUser("root");
         mysql.setPassword("password");
         mysql.setUrl("jdbc:mysql://localhost:3306/temp?autoReconnect=true&amp;useUnicode=true&amp;characterEncoding=UTF-8");
-        JdbcTransactionalResource derbyResource = new JdbcTransactionalResource("derby", mysql);
+        JdbcTransactionalResource mysqlResource = new JdbcTransactionalResource("jdbc/mysql", mysql);
 		
 		UserTransactionServiceImp utsi = new UserTransactionServiceImp();
 		
-		utsi.registerResource(derbyResource);
+		utsi.registerResource(mysqlResource);
 		
 		utsi.registerResource(new RecoverableMSResource("xa/ms1", ms));
 		
