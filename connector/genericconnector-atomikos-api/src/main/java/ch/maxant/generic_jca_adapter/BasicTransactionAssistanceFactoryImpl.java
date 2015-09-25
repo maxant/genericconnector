@@ -18,7 +18,7 @@ class BasicTransactionAssistanceFactoryImpl implements BasicTransactionAssistanc
 	public TransactionAssistant getTransactionAssistant() throws ResourceException {
 		//enlist a new resource into the transaction. it will be delisted, when its closed.
 		final CommitRollbackCallback commitRollbackCallback = AtomikosTransactionConfigurator.getCommitRollbackCallback(jndiName);
-		MicroserviceXAResource ms = new MicroserviceXAResourceImpl(jndiName, commitRollbackCallback);
+		MicroserviceXAResource ms = new MicroserviceXAResource(jndiName, commitRollbackCallback);
 		UserTransactionManager utm = new UserTransactionManager();
 		try {
 			if(utm.getStatus() == Status.STATUS_NO_TRANSACTION){

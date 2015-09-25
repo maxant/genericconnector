@@ -31,7 +31,7 @@ public final class AtomikosTransactionConfigurator {
 	/** one time configuration required for setting up a microservice in a transactional environment. */
 	public static void setup(String jndiName, final CommitRollbackCallback commitRollbackCallback){
     	UserTransactionServiceImp utsi = new UserTransactionServiceImp();
-        MicroserviceXAResource ms = new MicroserviceXAResourceImpl(jndiName, commitRollbackCallback);
+        MicroserviceXAResource ms = new MicroserviceXAResource(jndiName, commitRollbackCallback);
 		RecoverableMSResource resource = new RecoverableMSResource(ms);
 		resources.put(jndiName, resource);
 		utsi.registerResource(resource);

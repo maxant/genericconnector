@@ -7,7 +7,7 @@ import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 
 /** the XA resource used by Java SE */
-public class MicroserviceXAResource extends AbstractTransactionAssistanceXAResource {
+class MicroserviceXAResource extends AbstractTransactionAssistanceXAResource {
 
 	private static final long serialVersionUID = 1L;
 
@@ -23,11 +23,19 @@ public class MicroserviceXAResource extends AbstractTransactionAssistanceXAResou
 
 	private String jndiName;
 
-	/** @param jndiName 
-	 * @param commitRollbackCallback A stateless callback handler, which can be used for committing or rolling back any transaction */
-	public MicroserviceXAResource(String jndiName, UnderlyingConnectionImpl underlyingConnection) {
+	public MicroserviceXAResource(String jndiName, final CommitRollbackCallback commitRollbackCallback) {
 		this.jndiName = jndiName;
-		this.underlyingConnection = underlyingConnection;
+		this.underlyingConnection = new UnderlyingConnectionImpl() {
+			private static final long serialVersionUID = 1L;
+			@Override
+			public void rollback(String txid) throws Exception {
+				commitRollbackCallback.rollback(txid);
+			}
+			@Override
+			public void commit(String txid) throws Exception {
+				commitRollbackCallback.commit(txid);
+			}
+		};
 	}
 
 	@Override
@@ -68,11 +76,6 @@ public class MicroserviceXAResource extends AbstractTransactionAssistanceXAResou
 	public static void configure(long minAgeOfTransactionInMSBeforeRelevantForRecovery, File recoveryStatePersistenceDirectory){
 		MicroserviceXAResource.minAgeOfTransactionInMSBeforeRelevantForRecovery = minAgeOfTransactionInMSBeforeRelevantForRecovery;
 		MicroserviceXAResource.recoveryStatePersistenceDirectory = recoveryStatePersistenceDirectory;
-	}
-
-	/** the stateless callback, which can be used for committing or rolling back any transaction */
-	CommitRollbackCallback getCommitRollbackCallback() {
-		return underlyingConnection;
 	}
 
 	public String getJndiName() {
