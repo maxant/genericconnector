@@ -21,7 +21,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * a rest controller which calls thru to a service running inside a transaction
+ * a rest controller which calls thru to a service running inside a transaction.
+ * call like this: http://localhost:8191/createUser?username=john
  */
 @RestController
 public class AppController {

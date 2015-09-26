@@ -112,7 +112,7 @@ Insert under e.g. `jboss-install/standalone/configuration/server.xml`:
                     
                         <!-- WATCH OUT FOR THE VERSION NUNBER HERE!! -->
                     
-                        genericconnector-demo-ear.ear#genericconnector-rar-2.0.0-SNAPSHOT.rar
+                        genericconnector-demo-javaee-ear-2.1.1-SNAPSHOT.ear#genericconnector-rar-2.1.1-SNAPSHOT.rar
                     </archive>
                     <transaction-support>XATransaction</transaction-support>
                     <connection-definitions>

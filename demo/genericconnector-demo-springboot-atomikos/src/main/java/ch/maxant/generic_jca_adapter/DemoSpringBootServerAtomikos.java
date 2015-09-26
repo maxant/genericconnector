@@ -26,19 +26,16 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * see also:
  *  https://spring.io/guides/gs/rest-service/
  *  https://github.com/spring-projects/spring-boot/blob/master/spring-boot-samples/spring-boot-sample-jta-bitronix/src/main/java/sample/bitronix/SampleBitronixApplication.java
+ *  
+ *  test like this: http://localhost:8191/createUser?username=john
  */
 @SpringBootApplication
-public class DemoSpringBootServer extends BaseMain {
+public class DemoSpringBootServerAtomikos extends BaseMain {
 
     public static void main(String[] args) throws Exception {
     	setupCommitRollbackHandlerForMicroserviceWhichIsCalled();
 
-    	
-    	//TODO bet this dont work when using two web services? coz atomikos uses a name based on the classname of the resource, rather than the jndi name;
-    	
     	//run the application
-    	SpringApplication.run(DemoSpringBootServer.class, args);
+    	SpringApplication.run(DemoSpringBootServerAtomikos.class, args);
     }
-
-
 }

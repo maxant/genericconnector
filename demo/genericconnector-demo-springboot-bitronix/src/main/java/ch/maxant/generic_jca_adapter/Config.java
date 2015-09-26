@@ -11,11 +11,18 @@ import bitronix.tm.jndi.BitronixContext;
 @Configuration
 public class Config {
 
-    @Bean
-    public BasicTransactionAssistanceFactory factory() throws NamingException {
+    @Bean(name="xa/bookingService")
+    public BasicTransactionAssistanceFactory bookingSystemFactory() throws NamingException {
         Context ctx = new BitronixContext();
-        BasicTransactionAssistanceFactory microserviceFactory = (BasicTransactionAssistanceFactory) ctx.lookup("xa/ms1");
+        BasicTransactionAssistanceFactory microserviceFactory = (BasicTransactionAssistanceFactory) ctx.lookup("xa/bookingService");
         return microserviceFactory;
+    }
+    
+    @Bean(name="xa/letterService")
+    public BasicTransactionAssistanceFactory letterServiceFactory() throws NamingException {
+    	Context ctx = new BitronixContext();
+    	BasicTransactionAssistanceFactory microserviceFactory = (BasicTransactionAssistanceFactory) ctx.lookup("xa/letterService");
+    	return microserviceFactory;
     }
 	
 }

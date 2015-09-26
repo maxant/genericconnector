@@ -109,7 +109,7 @@
   </wsdl:binding>
   <wsdl:service name="LetterWebServiceService">
     <wsdl:port binding="tns:LetterWebServiceServiceSoapBinding" name="LetterWriterPort">
-      <soap:address location="http://localhost:8080/genericconnector-demo-letter-webservice/LetterWebService"></soap:address>
+      <soap:address location="http://localhost:8080/genericconnector-demo-webservice-letter/LetterWebService"></soap:address>
     </wsdl:port>
   </wsdl:service>
 </wsdl:definitions>

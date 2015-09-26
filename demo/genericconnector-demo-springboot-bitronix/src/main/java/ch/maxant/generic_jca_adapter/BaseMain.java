@@ -16,15 +16,29 @@
  */
 package ch.maxant.generic_jca_adapter;
 
+import ch.maxant.jca_demo.bookingsystem.BookingSystemWebServiceService;
 import ch.maxant.jca_demo.letterwriter.LetterWebServiceService;
 
 public abstract class BaseMain {
 
 	protected static void setupCommitRollbackHandlerForMicroserviceWhichIsCalled() {
     	{//setup microservice that we want to call within a transaction
-    		CommitRollbackCallback commitRollbackCallback = new CommitRollbackCallback() {
+    		CommitRollbackCallback bookingCommitRollbackCallback = new CommitRollbackCallback() {
 				private static final long serialVersionUID = 1L;
 				@Override
+    			public void rollback(String txid) throws Exception {
+    				new BookingSystemWebServiceService().getBookingSystemPort().cancelTickets(txid);
+    			}
+    			@Override
+    			public void commit(String txid) throws Exception {
+    				new BookingSystemWebServiceService().getBookingSystemPort().bookTickets(txid);
+    			}
+    		};
+    		BitronixTransactionConfigurator.setup("xa/bookingService", bookingCommitRollbackCallback);
+
+    		CommitRollbackCallback letterCommitRollbackCallback = new CommitRollbackCallback() {
+    			private static final long serialVersionUID = 1L;
+    			@Override
     			public void rollback(String txid) throws Exception {
     				//compensate by cancelling the letter
     				new LetterWebServiceService().getLetterWriterPort().cancelLetter(txid);
@@ -34,7 +48,7 @@ public abstract class BaseMain {
     				//nothing to do, this service autocommits.
     			}
     		};
-    		BitronixTransactionConfigurator.setup("xa/ms1", commitRollbackCallback);
+    		BitronixTransactionConfigurator.setup("xa/letterService", letterCommitRollbackCallback);
     	}
 
     	//when app shutsdown, we want to deregister the microservice from bitronix's singleton transaction manager.
@@ -44,7 +58,8 @@ public abstract class BaseMain {
     		@Override
     		public void run() {
     			//shutdown
-    			BitronixTransactionConfigurator.unregisterMicroserviceResourceFactory("xa/ms1");
+    			BitronixTransactionConfigurator.unregisterMicroserviceResourceFactory("xa/bookingService");
+    			BitronixTransactionConfigurator.unregisterMicroserviceResourceFactory("xa/letterService");
     		}
     	});
 	

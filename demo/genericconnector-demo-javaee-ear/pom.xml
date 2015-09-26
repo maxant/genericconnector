@@ -33,7 +33,7 @@
                     <modules>
                         <webModule>
                             <groupId>ch.maxant</groupId>
-                            <artifactId>genericconnector-demo-client</artifactId>
+                            <artifactId>genericconnector-demo-javaee-client</artifactId>
                             <contextRoot>genericconnectordemo</contextRoot>
                         </webModule>
                         <rarModule>

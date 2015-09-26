@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Context>
+    <!-- see http://www.atomikos.com/Documentation/Tomcat7Integration35 -->
+    <Transaction factory="com.atomikos.icatch.jta.UserTransactionFactory" />
+</Context>
+

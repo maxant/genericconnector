@@ -21,8 +21,11 @@ package ch.maxant.generic_jca_adapter;
 import javax.transaction.Transactional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
+import ch.maxant.jca_demo.bookingsystem.BookingSystem;
+import ch.maxant.jca_demo.bookingsystem.BookingSystemWebServiceService;
 import ch.maxant.jca_demo.letterwriter.LetterWebServiceService;
 import ch.maxant.jca_demo.letterwriter.LetterWriter;
 
@@ -33,9 +36,12 @@ public class AppService {
 	@Autowired
 	private AppRepository appRepository;
 
-	@Autowired
-	BasicTransactionAssistanceFactory microserviceFactory;
+	@Autowired @Qualifier("xa/bookingService")
+	BasicTransactionAssistanceFactory bookingServiceFactory;
 
+	@Autowired @Qualifier("xa/letterService")
+	BasicTransactionAssistanceFactory letterServiceFactory;
+	
 	public String doSomethingWithAGlobalTransactionAndARemoteMicroservice(String username) throws Exception {
 
 		{//write to local database
@@ -45,14 +51,24 @@ public class AppService {
 			this.appRepository.save(acct);
 		}
 
-        String msResponse = null;
-        try(TransactionAssistant transactionAssistant = microserviceFactory.getTransactionAssistant()){
+		String msResponse = null;
+
+		//call microservice #1
+        try(TransactionAssistant transactionAssistant = bookingServiceFactory.getTransactionAssistant()){
+        	msResponse = transactionAssistant.executeInActiveTransaction(txid->{
+        		final BookingSystem service = new BookingSystemWebServiceService().getBookingSystemPort();
+        		return service.reserveTickets(txid, username);
+        	});
+        }
+
+        //call microservice #2
+        try(TransactionAssistant transactionAssistant = letterServiceFactory.getTransactionAssistant()){
         	msResponse = transactionAssistant.executeInActiveTransaction(txid->{
         		final LetterWriter service = new LetterWebServiceService().getLetterWriterPort();
         		return service.writeLetter(txid, username);
         	});
         }
-
+        
         //simulate exception to cause rollback
 		if ("john".equals(username)) {
 			throw new RuntimeException("Simulated error");

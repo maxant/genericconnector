@@ -20,7 +20,7 @@
 			<groupId>ch.maxant</groupId>
 			<artifactId>genericconnector-api</artifactId>
 			<version>2.0.1-SNAPSHOT</version>
-			<scope>provided</scope>
+ 			<scope>provided</scope>
 		</dependency>
 	</dependencies>
 	<build>
