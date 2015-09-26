@@ -29,18 +29,36 @@ import com.atomikos.icatch.config.UserTransactionServiceImp;
 import com.atomikos.icatch.jta.UserTransactionManager;
 import com.mysql.jdbc.jdbc2.optional.MysqlXADataSource;
 
+import ch.maxant.jca_demo.bookingsystem.BookingSystem;
+import ch.maxant.jca_demo.bookingsystem.BookingSystemWebServiceService;
 import ch.maxant.jca_demo.letterwriter.LetterWebServiceService;
 import ch.maxant.jca_demo.letterwriter.LetterWriter;
 
 public class Main {
 
     public static void main(String[] args) throws Exception {
-        CommitRollbackCallback commitRollbackCallback = new CommitRollbackCallback() {
+    	//warning: this instance must be thread safe and serializable. build the web service client on the fly!
+        CommitRollbackCallback bookingCommitRollbackCallback = new CommitRollbackCallback() {
+			private static final long serialVersionUID = 1L;
+			@Override
+			public void rollback(String txid) throws Exception {
+				getService().cancelTickets(txid);
+			}
+			@Override
+			public void commit(String txid) throws Exception {
+				getService().bookTickets(txid);
+			}
+			private BookingSystem getService() {
+				return new BookingSystemWebServiceService().getBookingSystemPort();
+			}
+		};
+
+		//warning: this instance must be thread safe and serializable. build the web service client on the fly!
+		CommitRollbackCallback letterCommitRollbackCallback = new CommitRollbackCallback() {
 			private static final long serialVersionUID = 1L;
 			@Override
 			public void rollback(String txid) throws Exception {
 				//compensate by cancelling the letter
-				//warning: this instance must be thread safe and serializable. build the web service client on the fly!
 				LetterWriter service = new LetterWebServiceService().getLetterWriterPort(); //or take from a pool if you want to
 				service.cancelLetter(txid);
 			}
@@ -49,9 +67,10 @@ public class Main {
 				System.out.println("nothing to do, this service autocommits.");
 			}
 		};
-
+		
         {//once per microservice that you want to use - do this when app starts, so that recovery can function immediately
-        	AtomikosTransactionConfigurator.setup("xa/ms1", commitRollbackCallback);
+        	AtomikosTransactionConfigurator.setup("xa/bookingService", bookingCommitRollbackCallback);
+        	AtomikosTransactionConfigurator.setup("xa/letterService", letterCommitRollbackCallback);
         }
 
         //setup datasource
@@ -79,18 +98,25 @@ public class Main {
 
         try{//start of service method
         	String username = "ant";
+        	String msResponse = null;
         	
-        	//call microservice
-	        BasicTransactionAssistanceFactory microserviceFactory = new BasicTransactionAssistanceFactoryImpl("xa/ms1");
-	        String msResponse = null;
-	        try(TransactionAssistant transactionAssistant = microserviceFactory.getTransactionAssistant()){
+	        //call microservice #1
+	        BasicTransactionAssistanceFactory bookingMicroserviceFactory = new BasicTransactionAssistanceFactoryImpl("xa/bookingService");
+	        try(TransactionAssistant transactionAssistant = bookingMicroserviceFactory.getTransactionAssistant()){
 	        	msResponse = transactionAssistant.executeInActiveTransaction(txid->{
-					LetterWriter service = new LetterWebServiceService().getLetterWriterPort(); //take from pool if you want
-	        		return service.writeLetter(txid, username);
+	        		return new BookingSystemWebServiceService().getBookingSystemPort().reserveTickets(txid, username);
+	        	});
+	        }
+	        
+	        //call microservice #2
+	        BasicTransactionAssistanceFactory letterMicroserviceFactory = new BasicTransactionAssistanceFactoryImpl("xa/bookingService");
+	        try(TransactionAssistant transactionAssistant = letterMicroserviceFactory.getTransactionAssistant()){
+	        	msResponse += "/" + transactionAssistant.executeInActiveTransaction(txid->{
+	        		return new LetterWebServiceService().getLetterWriterPort().writeLetter(txid, username);
 	        	});
 	        }
 
-			//call db
+	        //#3 do something with a local db
 	        runSql(xamysql, username);
 	        
 	        if(username == "john"){
@@ -106,7 +132,8 @@ public class Main {
         }
 
         //container shutdown
-		AtomikosTransactionConfigurator.unregisterMicroserviceResourceFactory("xa/ms1");
+		AtomikosTransactionConfigurator.unregisterMicroserviceResourceFactory("xa/bookingService");
+		AtomikosTransactionConfigurator.unregisterMicroserviceResourceFactory("xa/letterService");
 		utsi.shutdown(false);
     }
 

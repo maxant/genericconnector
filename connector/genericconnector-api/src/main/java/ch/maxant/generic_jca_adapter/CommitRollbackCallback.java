@@ -2,6 +2,9 @@ package ch.maxant.generic_jca_adapter;
 
 import java.io.Serializable;
 
+/**
+ * WARNING: the implementation of this class must be thread safe, as multiple threads will call it concurrently!
+ */
 public interface CommitRollbackCallback extends Serializable {
 
     /** The container will call this function 

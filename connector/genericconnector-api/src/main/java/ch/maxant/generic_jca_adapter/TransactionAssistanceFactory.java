@@ -43,8 +43,10 @@ public interface TransactionAssistanceFactory extends Serializable, Referenceabl
      * Normally this is only called when an application is shutdown. */
     public void unregisterCommitRollbackRecovery();
 
-    /** Classes with this interface are registered with the 
-        TransactionAssistanceFactory. */
+    /** Classes with this interface are registered with the TransactionAssistanceFactory.
+     * 
+     *  WARNING: the implementation of this class must be thread safe, as multiple threads will call it concurrently!
+     */
     public static interface CommitRollbackRecoveryCallback extends CommitRollbackCallback {
         
         /** The container will call this function during

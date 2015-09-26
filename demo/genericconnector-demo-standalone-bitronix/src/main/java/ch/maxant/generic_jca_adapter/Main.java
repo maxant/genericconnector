@@ -27,47 +27,84 @@ import bitronix.tm.BitronixTransaction;
 import bitronix.tm.BitronixTransactionManager;
 import bitronix.tm.TransactionManagerServices;
 import bitronix.tm.jndi.BitronixContext;
+import bitronix.tm.resource.ResourceLoader;
+import ch.maxant.jca_demo.bookingsystem.BookingSystem;
+import ch.maxant.jca_demo.bookingsystem.BookingSystemWebServiceService;
 import ch.maxant.jca_demo.letterwriter.LetterWebServiceService;
 import ch.maxant.jca_demo.letterwriter.LetterWriter;
 
 public class Main {
 
     public static void main(String[] args) throws Exception {
-        final LetterWriter service = new LetterWebServiceService().getLetterWriterPort(); //take from pool if you want
-        CommitRollbackCallback commitRollbackCallback = new CommitRollbackCallback() {
+    	System.setProperty("log4j.debug", "true");
+    	
+    	//load up resources registered via bitronix
+    	ResourceLoader rl = new ResourceLoader();
+    	rl.init();
+    	
+    	//warning: this instance must be thread safe and serializable. build the web service client on the fly!
+        CommitRollbackCallback bookingCommitRollbackCallback = new CommitRollbackCallback() {
+			private static final long serialVersionUID = 1L;
+			@Override
+			public void rollback(String txid) throws Exception {
+				getService().cancelTickets(txid);
+			}
+			@Override
+			public void commit(String txid) throws Exception {
+				getService().bookTickets(txid);
+			}
+			private BookingSystem getService() {
+				return new BookingSystemWebServiceService().getBookingSystemPort();
+			}
+		};
+
+		//warning: this instance must be thread safe and serializable. build the web service client on the fly!
+		CommitRollbackCallback letterCommitRollbackCallback = new CommitRollbackCallback() {
 			private static final long serialVersionUID = 1L;
 			@Override
 			public void rollback(String txid) throws Exception {
 				//compensate by cancelling the letter
+				LetterWriter service = new LetterWebServiceService().getLetterWriterPort(); //or take from a pool if you want to
 				service.cancelLetter(txid);
 			}
 			@Override
 			public void commit(String txid) throws Exception {
-				//nothing to do, this service autocommits.
+				System.out.println("nothing to do, this service autocommits.");
 			}
 		};
 
         {//once per microservice that you want to use - do this when app starts, so that recovery can function immediately
-        	BitronixTransactionConfigurator.setup("xa/ms1", commitRollbackCallback);
+        	BitronixTransactionConfigurator.setup("xa/bookingService", bookingCommitRollbackCallback);
+        	BitronixTransactionConfigurator.setup("xa/letterService", letterCommitRollbackCallback);
         }
         
-        String username = "john";
+        String username = "ant";
 
         BitronixTransactionManager tm = TransactionManagerServices.getTransactionManager();
         tm.begin();
         BitronixTransaction tx = tm.getCurrentTransaction();
         
-        try{//start of service method
+        try{//start of service implementation:
 	        Context ctx = new BitronixContext();
-
-	        BasicTransactionAssistanceFactory microserviceFactory = (BasicTransactionAssistanceFactory) ctx.lookup("xa/ms1");
 	        String msResponse = null;
-	        try(TransactionAssistant transactionAssistant = microserviceFactory.getTransactionAssistant()){
+
+	        //call microservice #1
+	        BasicTransactionAssistanceFactory bookingMicroserviceFactory = (BasicTransactionAssistanceFactory) ctx.lookup("xa/bookingService");
+	        try(TransactionAssistant transactionAssistant = bookingMicroserviceFactory.getTransactionAssistant()){
 	        	msResponse = transactionAssistant.executeInActiveTransaction(txid->{
-	        		return service.writeLetter(txid, username);
+	        		return new BookingSystemWebServiceService().getBookingSystemPort().reserveTickets(txid, username);
 	        	});
 	        }
 	        
+	        //call microservice #2
+	        BasicTransactionAssistanceFactory letterMicroserviceFactory = (BasicTransactionAssistanceFactory) ctx.lookup("xa/letterService");
+	        try(TransactionAssistant transactionAssistant = letterMicroserviceFactory.getTransactionAssistant()){
+	        	msResponse += "/" + transactionAssistant.executeInActiveTransaction(txid->{
+	        		return new LetterWebServiceService().getLetterWriterPort().writeLetter(txid, username);
+	        	});
+	        }
+
+	        //#3 do something with a local db
 	        runSql((DataSource) ctx.lookup("jdbc/mysql1"), username);
 	        
 	        if(username == "john"){
@@ -81,8 +118,10 @@ public class Main {
         }
 
         //container shutdown
-		BitronixTransactionConfigurator.unregisterMicroserviceResourceFactory("xa/ms1");
+		BitronixTransactionConfigurator.unregisterMicroserviceResourceFactory("xa/bookingService");
+		BitronixTransactionConfigurator.unregisterMicroserviceResourceFactory("xa/letterService");
         tm.shutdown();
+        rl.shutdown();
     }
 
     private static void runSql(DataSource ds, String username) throws SQLException {
