@@ -69,7 +69,7 @@ public abstract class UnderlyingConnectionImpl implements UnderlyingConnection, 
 
 	@Override
 	public String[] getTransactionsInNeedOfRecovery() {
-		return new String[]{};
+		throw new UnsupportedOperationException("should never be called, because the MicroserviceXAResource handles this internally");
 	}
 
 }
