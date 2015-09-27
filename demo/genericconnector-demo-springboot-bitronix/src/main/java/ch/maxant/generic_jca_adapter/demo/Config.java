@@ -1,4 +1,4 @@
-package ch.maxant.generic_jca_adapter;
+package ch.maxant.generic_jca_adapter.demo;
 
 import javax.naming.Context;
 import javax.naming.NamingException;
@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import bitronix.tm.jndi.BitronixContext;
+import ch.maxant.generic_jca_adapter.BasicTransactionAssistanceFactory;
 
 @Configuration
 public class Config {

@@ -41,7 +41,7 @@ import bitronix.tm.resource.common.XAResourceProducer;
 import bitronix.tm.resource.ehcache.EhCacheXAResourceProducer;
 
 /** based on {@link EhCacheXAResourceProducer} */
-public class MicroserviceResourceProducer extends ResourceBean implements XAResourceProducer, BasicTransactionAssistanceFactory {
+class MicroserviceResourceProducer extends ResourceBean implements XAResourceProducer, BasicTransactionAssistanceFactory {
 
     private static final long serialVersionUID = 1L;
 

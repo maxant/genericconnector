@@ -5,11 +5,11 @@ import javax.transaction.xa.XAResource;
 import com.atomikos.datasource.ResourceException;
 import com.atomikos.datasource.xa.XATransactionalResource;
 
-public class RecoverableMSResource extends XATransactionalResource {
+class RecoverableMSResource extends XATransactionalResource {
 
 	private MicroserviceXAResource ms;
 
-	public RecoverableMSResource(MicroserviceXAResource ms) {
+	RecoverableMSResource(MicroserviceXAResource ms) {
 		super(ms.getJndiName());
 		this.ms = ms;
 	}

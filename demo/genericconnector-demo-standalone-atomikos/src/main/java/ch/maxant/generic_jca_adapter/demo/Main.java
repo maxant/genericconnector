@@ -14,7 +14,7 @@
    limitations under the License.
 
  */
-package ch.maxant.generic_jca_adapter;
+package ch.maxant.generic_jca_adapter.demo;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -29,6 +29,11 @@ import com.atomikos.icatch.config.UserTransactionServiceImp;
 import com.atomikos.icatch.jta.UserTransactionManager;
 import com.mysql.jdbc.jdbc2.optional.MysqlXADataSource;
 
+import ch.maxant.generic_jca_adapter.AtomikosTransactionConfigurator;
+import ch.maxant.generic_jca_adapter.BasicTransactionAssistanceFactory;
+import ch.maxant.generic_jca_adapter.BasicTransactionAssistanceFactoryImpl;
+import ch.maxant.generic_jca_adapter.CommitRollbackCallback;
+import ch.maxant.generic_jca_adapter.TransactionAssistant;
 import ch.maxant.jca_demo.bookingsystem.BookingSystem;
 import ch.maxant.jca_demo.bookingsystem.BookingSystemWebServiceService;
 import ch.maxant.jca_demo.letterwriter.LetterWebServiceService;

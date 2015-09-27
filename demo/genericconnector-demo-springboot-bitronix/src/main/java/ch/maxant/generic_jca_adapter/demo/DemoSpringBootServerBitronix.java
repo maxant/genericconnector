@@ -14,10 +14,12 @@
    limitations under the License.
 
  */
-package ch.maxant.generic_jca_adapter;
+package ch.maxant.generic_jca_adapter.demo;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+import ch.maxant.generic_jca_adapter.demo.AppController;
 
 /**
  * demo of a spring boot application which publishes an endpoint 
@@ -30,12 +32,14 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  *  test like this: http://localhost:8191/createUser?username=john
  */
 @SpringBootApplication
-public class DemoSpringBootServerAtomikos extends BaseMain {
+public class DemoSpringBootServerBitronix extends BaseMain {
 
     public static void main(String[] args) throws Exception {
     	setupCommitRollbackHandlerForMicroserviceWhichIsCalled();
 
     	//run the application
-    	SpringApplication.run(DemoSpringBootServerAtomikos.class, args);
+    	SpringApplication.run(DemoSpringBootServerBitronix.class, args);
     }
+
+
 }

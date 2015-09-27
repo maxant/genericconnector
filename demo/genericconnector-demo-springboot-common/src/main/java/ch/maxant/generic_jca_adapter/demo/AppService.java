@@ -16,7 +16,7 @@
 based on https://raw.githubusercontent.com/spring-projects/spring-boot/master/spring-boot-samples/spring-boot-sample-jta-bitronix/src/main/java/sample/bitronix/AccountService.java
  */
 
-package ch.maxant.generic_jca_adapter;
+package ch.maxant.generic_jca_adapter.demo;
 
 import javax.transaction.Transactional;
 
@@ -24,6 +24,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
+import ch.maxant.generic_jca_adapter.BasicTransactionAssistanceFactory;
+import ch.maxant.generic_jca_adapter.TransactionAssistant;
 import ch.maxant.jca_demo.bookingsystem.BookingSystem;
 import ch.maxant.jca_demo.bookingsystem.BookingSystemWebServiceService;
 import ch.maxant.jca_demo.letterwriter.LetterWebServiceService;

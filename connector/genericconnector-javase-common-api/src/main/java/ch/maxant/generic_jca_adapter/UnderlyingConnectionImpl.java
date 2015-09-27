@@ -22,7 +22,7 @@ import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 
-public abstract class UnderlyingConnectionImpl implements UnderlyingConnection, Serializable {
+abstract class UnderlyingConnectionImpl implements UnderlyingConnection, Serializable {
 
 	private static final long serialVersionUID = 1L;
 

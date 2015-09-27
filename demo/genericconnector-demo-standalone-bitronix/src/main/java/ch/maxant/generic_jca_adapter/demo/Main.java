@@ -14,7 +14,7 @@
    limitations under the License.
 
  */
-package ch.maxant.generic_jca_adapter;
+package ch.maxant.generic_jca_adapter.demo;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -28,6 +28,10 @@ import bitronix.tm.BitronixTransactionManager;
 import bitronix.tm.TransactionManagerServices;
 import bitronix.tm.jndi.BitronixContext;
 import bitronix.tm.resource.ResourceLoader;
+import ch.maxant.generic_jca_adapter.BasicTransactionAssistanceFactory;
+import ch.maxant.generic_jca_adapter.BitronixTransactionConfigurator;
+import ch.maxant.generic_jca_adapter.CommitRollbackCallback;
+import ch.maxant.generic_jca_adapter.TransactionAssistant;
 import ch.maxant.jca_demo.bookingsystem.BookingSystem;
 import ch.maxant.jca_demo.bookingsystem.BookingSystemWebServiceService;
 import ch.maxant.jca_demo.letterwriter.LetterWebServiceService;

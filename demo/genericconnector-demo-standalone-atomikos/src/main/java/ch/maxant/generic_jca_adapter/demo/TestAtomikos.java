@@ -1,4 +1,4 @@
-package ch.maxant.generic_jca_adapter;
+package ch.maxant.generic_jca_adapter.demo;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -11,6 +11,11 @@ import com.atomikos.datasource.xa.jdbc.JdbcTransactionalResource;
 import com.atomikos.icatch.config.UserTransactionServiceImp;
 import com.atomikos.icatch.jta.UserTransactionManager;
 import com.mysql.jdbc.jdbc2.optional.MysqlXADataSource;
+
+import ch.maxant.generic_jca_adapter.ExecuteCallback;
+import ch.maxant.generic_jca_adapter.MicroserviceXAResource;
+import ch.maxant.generic_jca_adapter.RecoverableMSResource;
+import ch.maxant.generic_jca_adapter.UnderlyingConnectionImpl;
 
 /** working out how to use atomikos, before building {@link Main} */
 public class TestAtomikos {

@@ -16,7 +16,7 @@
  */
 package ch.maxant.generic_jca_adapter;
 
-public interface MicroserviceResourceFactory {
+interface MicroserviceResourceFactory {
 
 	MicroserviceXAResource build();
 }

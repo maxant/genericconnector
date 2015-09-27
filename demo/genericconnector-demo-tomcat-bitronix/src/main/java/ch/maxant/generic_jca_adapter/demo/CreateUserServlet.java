@@ -14,7 +14,7 @@
    limitations under the License.
 
  */
-package ch.maxant.generic_jca_adapter;
+package ch.maxant.generic_jca_adapter.demo;
 
 import java.io.IOException;
 import java.sql.Connection;
@@ -38,6 +38,10 @@ import javax.transaction.UserTransaction;
 
 import bitronix.tm.TransactionManagerServices;
 import bitronix.tm.jndi.BitronixContext;
+import ch.maxant.generic_jca_adapter.BasicTransactionAssistanceFactory;
+import ch.maxant.generic_jca_adapter.BitronixTransactionConfigurator;
+import ch.maxant.generic_jca_adapter.CommitRollbackCallback;
+import ch.maxant.generic_jca_adapter.TransactionAssistant;
 import ch.maxant.jca_demo.letterwriter.LetterWebServiceService;
 import ch.maxant.jca_demo.letterwriter.LetterWriter;
 
@@ -106,7 +110,9 @@ public class CreateUserServlet extends HttpServlet implements ServletContextList
 	public void contextInitialized(ServletContextEvent sce) {
 		//dont really do this here - do it using a server lifecycle listener - im just doing it here to make this app portable. 
 		//see serverl.xml =>   <Listener className="bitronix.tm.integration.tomcat55.BTMLifecycleListener"></Listener>
-		TransactionManagerServices.getTransactionManager();
+		{
+			TransactionManagerServices.getTransactionManager();
+		} //end "dont do here"
 
 //TODO lookup resources using bitronix factory in normal initialContext, rather than in BitronixContext?
 		

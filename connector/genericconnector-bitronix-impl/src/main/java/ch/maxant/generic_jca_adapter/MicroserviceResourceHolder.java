@@ -28,7 +28,7 @@ import bitronix.tm.resource.common.XAResourceHolder;
 import bitronix.tm.resource.ehcache.EhCacheXAResourceHolder;
 
 /** based on {@link EhCacheXAResourceHolder} */
-public class MicroserviceResourceHolder extends AbstractXAResourceHolder {
+class MicroserviceResourceHolder extends AbstractXAResourceHolder {
 
     private final XAResource resource;
     private final ResourceBean bean;
@@ -41,7 +41,7 @@ public class MicroserviceResourceHolder extends AbstractXAResourceHolder {
      * @param bean
      *            the required ResourceBean
      */
-    public MicroserviceResourceHolder(XAResource resource, ResourceBean bean) {
+    MicroserviceResourceHolder(XAResource resource, ResourceBean bean) {
         this.resource = resource;
         this.bean = bean;
     }

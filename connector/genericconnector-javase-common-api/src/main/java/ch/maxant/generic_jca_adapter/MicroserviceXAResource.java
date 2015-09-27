@@ -7,7 +7,7 @@ import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 
 /** the XA resource used by Java SE */
-class MicroserviceXAResource extends AbstractTransactionAssistanceXAResource {
+public class MicroserviceXAResource extends AbstractTransactionAssistanceXAResource {
 
 	private static final long serialVersionUID = 1L;
 
@@ -23,7 +23,7 @@ class MicroserviceXAResource extends AbstractTransactionAssistanceXAResource {
 
 	private String jndiName;
 
-	public MicroserviceXAResource(String jndiName, final CommitRollbackCallback commitRollbackCallback) {
+	MicroserviceXAResource(String jndiName, final CommitRollbackCallback commitRollbackCallback) {
 		this.jndiName = jndiName;
 		this.underlyingConnection = new UnderlyingConnectionImpl() {
 			private static final long serialVersionUID = 1L;
@@ -68,7 +68,7 @@ class MicroserviceXAResource extends AbstractTransactionAssistanceXAResource {
 	}
 
 	/** execute the given callback in the active transaction */
-	public <T> T executeInActiveTransaction(ExecuteCallback<T> c) throws Exception {
+	<O> O executeInActiveTransaction(ExecuteCallback<O> c) throws Exception {
 		return underlyingConnection.execute(c, recoveryStatePersistenceDirectory);
 	}
 
@@ -78,7 +78,7 @@ class MicroserviceXAResource extends AbstractTransactionAssistanceXAResource {
 		MicroserviceXAResource.recoveryStatePersistenceDirectory = recoveryStatePersistenceDirectory;
 	}
 
-	public String getJndiName() {
+	String getJndiName() {
 		return jndiName;
 	}
 }

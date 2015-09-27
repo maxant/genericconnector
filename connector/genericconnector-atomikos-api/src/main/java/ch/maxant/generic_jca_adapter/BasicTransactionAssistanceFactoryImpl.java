@@ -6,11 +6,11 @@ import javax.transaction.Transaction;
 
 import com.atomikos.icatch.jta.UserTransactionManager;
 
-class BasicTransactionAssistanceFactoryImpl implements BasicTransactionAssistanceFactory {
+public class BasicTransactionAssistanceFactoryImpl implements BasicTransactionAssistanceFactory {
 
 	private String jndiName;
 
-	BasicTransactionAssistanceFactoryImpl(String jndiName) {
+	public BasicTransactionAssistanceFactoryImpl(String jndiName) {
 		this.jndiName = jndiName;
 	}
 

@@ -37,7 +37,7 @@ import javax.transaction.xa.Xid;
  * {@link XAResource} used by the transaction assistance JCA Adapter to bind callbacks 
  * into transactions.
  */
-public abstract class AbstractTransactionAssistanceXAResource implements XAResource, Serializable {
+abstract class AbstractTransactionAssistanceXAResource implements XAResource, Serializable {
 
     private static final long serialVersionUID = 1L;
     

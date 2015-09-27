@@ -14,8 +14,9 @@
    limitations under the License.
 
  */
-package ch.maxant.generic_jca_adapter;
+package ch.maxant.generic_jca_adapter.demo;
 
+import java.io.File;
 import java.io.IOException;
 
 import javax.naming.InitialContext;
@@ -32,6 +33,12 @@ import javax.transaction.UserTransaction;
 
 import com.atomikos.icatch.jta.UserTransactionManager;
 
+import ch.maxant.generic_jca_adapter.AtomikosTransactionConfigurator;
+import ch.maxant.generic_jca_adapter.BasicTransactionAssistanceFactory;
+import ch.maxant.generic_jca_adapter.BasicTransactionAssistanceFactoryImpl;
+import ch.maxant.generic_jca_adapter.CommitRollbackCallback;
+import ch.maxant.generic_jca_adapter.MicroserviceXAResource;
+import ch.maxant.generic_jca_adapter.TransactionAssistant;
 import ch.maxant.jca_demo.bookingsystem.BookingSystem;
 import ch.maxant.jca_demo.bookingsystem.BookingSystemWebServiceService;
 import ch.maxant.jca_demo.letterwriter.LetterWebServiceService;
@@ -99,12 +106,18 @@ public class CreateUserServlet extends HttpServlet implements ServletContextList
 	public void contextInitialized(ServletContextEvent sce) {
 		//dont really do this here - do it using a server lifecycle listener - im just doing it here to make this app portable. 
 		//see http://www.atomikos.com/Documentation/Tomcat7Integration35
-		UserTransactionManager utm = new UserTransactionManager();
-        try {
-			utm.init();
-		} catch (SystemException e) {
-			throw new RuntimeException(e);
-		}
+		{
+			//example of configuring the transaction assistance component:
+			MicroserviceXAResource.configure(30000L, new File("."));
+			
+			//initialise TM
+			UserTransactionManager utm = new UserTransactionManager();
+			try {
+				utm.init();
+			} catch (SystemException e) {
+				throw new RuntimeException(e);
+			}
+		} //end "dont do here"
 		
 		//once per microservice that you want to use - do this when app starts, so that recovery can function immediately
 		{
@@ -122,6 +135,7 @@ public class CreateUserServlet extends HttpServlet implements ServletContextList
 				}
 			};
 			AtomikosTransactionConfigurator.setup("xa/letterWriter", commitRollbackCallback);
+
 		}
 		{
 			final BookingSystem bookingService = new BookingSystemWebServiceService().getBookingSystemPort();

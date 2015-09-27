@@ -6,11 +6,11 @@ import javax.transaction.xa.XAResource;
 
 import com.atomikos.icatch.jta.UserTransactionManager;
 
-public class AtomikosTransactionAssistantImpl implements TransactionAssistant {
+class AtomikosTransactionAssistantImpl implements TransactionAssistant {
 
 	private MicroserviceXAResource ms;
 
-	public AtomikosTransactionAssistantImpl(MicroserviceXAResource ms) {
+	AtomikosTransactionAssistantImpl(MicroserviceXAResource ms) {
 		this.ms = ms;
 	}
 
