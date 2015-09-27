@@ -21,7 +21,7 @@ class AtomikosTransactionAssistantImpl implements TransactionAssistant {
 
 	@Override
 	public void close() {
-		UserTransactionManager utm = new UserTransactionManager();
+		UserTransactionManager utm = getTransactionManager();
 		try {
 			if(utm.getStatus() == Status.STATUS_NO_TRANSACTION){
 				throw new RuntimeException("no transaction found. please start one before getting the transaction assistant. status was: " + utm.getStatus());
@@ -31,6 +31,10 @@ class AtomikosTransactionAssistantImpl implements TransactionAssistant {
 		} catch (Exception e) {
 			throw new RuntimeException("Unable to delist resource from transaction", e);
 		}
+	}
+
+	protected UserTransactionManager getTransactionManager() {
+		return new UserTransactionManager();
 	}
 
 }
