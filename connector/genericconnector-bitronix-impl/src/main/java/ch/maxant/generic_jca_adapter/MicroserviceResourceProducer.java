@@ -207,4 +207,9 @@ public class MicroserviceResourceProducer extends ResourceBean implements XAReso
 			}
 		};
     }
+    
+    /** meant for testing only */
+    static ConcurrentMap<String, MicroserviceResourceProducer> getProducers() {
+		return producers;
+	}
 }
