@@ -2,7 +2,19 @@
 
 This folder contains the source of the actual generic connector resource adapter.
 
-Build using Maven starting from genericconnector-parent.
+Build using Maven starting from inside `genericconnector-parent`
+
+- `genericconnector-api` - builds the API on which your code should be dependent
+- `genericconnector-impl` - 
+- `genericconnector-rar` - 
+
+- `genericconnector-javase-common-api` - 
+- `genericconnector-atomikos-api` - 
+- `genericconnector-atomikos-impl` - 
+- `genericconnector-bitronix-api` - 
+- `genericconnector-bitronix-impl` - 
+
+- `genericconnector-parent` - 
 
 The code here builds a generic JCA resource adapter capable of binding things like web services into JTA global transactions controlled by Java EE application servers.
 

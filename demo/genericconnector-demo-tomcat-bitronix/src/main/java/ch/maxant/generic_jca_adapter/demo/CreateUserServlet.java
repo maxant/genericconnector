@@ -42,8 +42,8 @@ import ch.maxant.generic_jca_adapter.BasicTransactionAssistanceFactory;
 import ch.maxant.generic_jca_adapter.BitronixTransactionConfigurator;
 import ch.maxant.generic_jca_adapter.CommitRollbackCallback;
 import ch.maxant.generic_jca_adapter.TransactionAssistant;
+import ch.maxant.jca_demo.bookingsystem.BookingSystemWebServiceService;
 import ch.maxant.jca_demo.letterwriter.LetterWebServiceService;
-import ch.maxant.jca_demo.letterwriter.LetterWriter;
 
 /** call like this: http://localhost:8081/genericconnector-demo-tomcat-bitronix/createUser?username=john */
 @WebServlet("/createUser")
@@ -64,14 +64,24 @@ public class CreateUserServlet extends HttpServlet implements ServletContextList
 			String msResponse = null;
 			{//inside transaction:
 				Context ctx = new BitronixContext();
-				BasicTransactionAssistanceFactory microserviceFactory = (BasicTransactionAssistanceFactory) ctx.lookup("xa/ms1");
-				try(TransactionAssistant transactionAssistant = microserviceFactory.getTransactionAssistant()){
+
+				//1) CALL BOOKING SERVICE
+				BasicTransactionAssistanceFactory bookingServiceFactory = (BasicTransactionAssistanceFactory) ctx.lookup("xa/bookingService");
+				try(TransactionAssistant transactionAssistant = bookingServiceFactory.getTransactionAssistant()){
 					msResponse = transactionAssistant.executeInActiveTransaction(txid->{
-						final LetterWriter service = new LetterWebServiceService().getLetterWriterPort();
-						return service.writeLetter(txid, username);
+						return new BookingSystemWebServiceService().getBookingSystemPort().reserveTickets(txid, username);
 					});
 				}
 				
+				//2) CALL LETTER SERVICE
+				BasicTransactionAssistanceFactory letterServiceFactory = (BasicTransactionAssistanceFactory) ctx.lookup("xa/letterService");
+				try(TransactionAssistant transactionAssistant = letterServiceFactory.getTransactionAssistant()){
+					msResponse = transactionAssistant.executeInActiveTransaction(txid->{
+						return new LetterWebServiceService().getLetterWriterPort().writeLetter(txid, username);
+					});
+				}
+				
+				//3) CALL LOCAL DB
 				runSql(username);
 			}
 
@@ -118,26 +128,39 @@ public class CreateUserServlet extends HttpServlet implements ServletContextList
 		
 		//once per microservice that you want to use - do this when app starts, so that recovery can function immediately
 		{
-			final LetterWriter service = new LetterWebServiceService().getLetterWriterPort(); //take from pool if you want
-			CommitRollbackCallback commitRollbackCallback = new CommitRollbackCallback() {
+			CommitRollbackCallback bookingCommitRollbackCallback = new CommitRollbackCallback() {
+				private static final long serialVersionUID = 1L;
+				@Override
+				public void rollback(String txid) throws Exception {
+					new BookingSystemWebServiceService().getBookingSystemPort().cancelTickets(txid);
+				}
+				@Override
+				public void commit(String txid) throws Exception {
+					new BookingSystemWebServiceService().getBookingSystemPort().bookTickets(txid);
+				}
+			};
+			BitronixTransactionConfigurator.setup("xa/bookingService", bookingCommitRollbackCallback);
+
+			CommitRollbackCallback letterCommitRollbackCallback = new CommitRollbackCallback() {
 				private static final long serialVersionUID = 1L;
 				@Override
 				public void rollback(String txid) throws Exception {
 					//compensate by cancelling the letter
-					service.cancelLetter(txid);
+					new LetterWebServiceService().getLetterWriterPort().cancelLetter(txid);
 				}
 				@Override
 				public void commit(String txid) throws Exception {
 					//nothing to do, this service autocommits.
 				}
 			};
-			BitronixTransactionConfigurator.setup("xa/ms1", commitRollbackCallback);
+			BitronixTransactionConfigurator.setup("xa/letterService", letterCommitRollbackCallback);
 		}
 	}
 
 	@Override
 	public void contextDestroyed(ServletContextEvent sce) {
-		BitronixTransactionConfigurator.unregisterMicroserviceResourceFactory("xa/ms1");
+		BitronixTransactionConfigurator.unregisterMicroserviceResourceFactory("xa/bookingService");
+		BitronixTransactionConfigurator.unregisterMicroserviceResourceFactory("xa/letterService");
 
 		//dont do this here - see note in #contextInitialized
         TransactionManagerServices.getTransactionManager().shutdown();
