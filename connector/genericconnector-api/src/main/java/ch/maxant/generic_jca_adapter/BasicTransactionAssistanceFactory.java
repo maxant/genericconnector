@@ -19,7 +19,7 @@ package ch.maxant.generic_jca_adapter;
 import javax.resource.ResourceException;
 
 /**
- * The resource injected into say a Servlet or EJB.  Used to bind a resource into
+ * The resource injected into say a Servlet or EJB.  Used to bind a call to a resource, e.g. a microservice, into
  * the active XA transaction.
  */
 public interface BasicTransactionAssistanceFactory {

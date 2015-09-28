@@ -22,6 +22,7 @@ import java.util.Map;
 
 import com.atomikos.icatch.config.UserTransactionServiceImp;
 
+/** Class used to setup the {@link CommitRollbackCallback} to be used for the given unique JNDI name. */
 public final class AtomikosTransactionConfigurator {
 
 	private AtomikosTransactionConfigurator() {}
@@ -44,8 +45,13 @@ public final class AtomikosTransactionConfigurator {
 		utsi.removeResource(resources.remove(name));
 	}
 	
+	/** @return the {@link CommitRollbackCallback} registered during setup, or null, if none found (eg never registered, or unregistered). */
 	static CommitRollbackCallback getCommitRollbackCallback(String jndiName){
-		return resources.get(jndiName).getMicroserviceResource().getUnderlyingConnection();
+		RecoverableMSResource rr = resources.get(jndiName);
+		if(rr != null){
+			return rr.getMicroserviceResource().getUnderlyingConnection();
+		}
+		return null;
 	}
 	
 }
