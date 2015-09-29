@@ -1,7 +1,7 @@
 #genericconnector - Home
 
 A generic connector capable of binding resources like (microservice) web services into JTA global transactions, **so you don't have to write framework code** to ensure your
-data remains consistent.
+data remains consistent when there are system failures.
 
 Imagine calling two web services and the call to the second one fails. You will need to clean up otherwise any data written during the first call will be inconsistent with the missing data that was supposed to be written in the second call which failed!  Instead of writing complex code which can track inconsistencies and repair them, use this library which piggy-backs on top of tried and tested Java transaction managers, to handle recovery automatically.
 
@@ -34,8 +34,8 @@ See demo/README.md for lots of examples!
 
 This folder contains:
 
-- the "connector" folder, containing the connector
-- the "demo" folder containing lots of demo projects showing how to use the connector in different environments.
+- `connector` - a folder containing the connector API and implementation,
+- `demo` - a folder containing lots of demo projects showing how to use the connector in different environments.
 
 ##Sample Code
 
@@ -52,7 +52,7 @@ This folder contains:
       };
       TransactionConfigurator.setup("xa/bookingService", bookingCommitRollbackCallback);
 
-2) Calling a service inside a transaction, so that ANY data written using a resource enlisted in the transaction (databases, JMS queues/topics, JCA adapters, etc.) remains consistent:
+2) Calling a service inside a transaction, so that ANY data written by the service, or indeed using a resource enlisted in the transaction (databases, JMS queues/topics, JCA adapters, etc.) remains globally consistent (all resources and the service commit, or rollback together):
 
       @Inject BasicTransactionAssistanceFactory bookingServiceFactory;
 
@@ -75,6 +75,24 @@ This folder contains:
           //call a database or JMS queue; do some business logic...
       ...
 
+##FAQ
+
+See end of http://blog.maxant.co.uk/pebble/2015/08/04/1438716480000.html.
+
+##More advanced setups
+
+1) Before you call your remote service, call a service (EJB/Spring Bean/POJO) which persists the intention to call the remote system, in a new transaction, which commits immediately. This can be used during recovery to tell the remote system how to rollback. It depends on the system, but a good one lets you always send your reference number or a reference number from a previous interaction, so that the context is clear. That way you can tell the remote system to forget what you did during the execution stage. Imagine the execution stage didn't respond and you got a timeout from the remote service. But also imagine that internally, they had completed the execution stage. Because you rollback the transaction after this failure, the transaction manager will call your rollback handler and you can tell the remote system to cancel whatever it was you did when you were executing.
+
+2) Call a service (EJB) which persists the result of the remote system call, in a new transaction, which commits immediately. Persist that info together with the transaction ID, so that you can access the info during commit, rollback or recovery, if you need to. Imagine having to cancel something using the ID that they returned.  That isn't too great a system though, because what if there was simply a timeout and you didn't get the response, but they did complete on their side!  That is why you should perist the intention to call their service - see above.
+
+3) Create cleanup jobs for deleting old data which you persisted in steps 1) or 2) above. EJBs with `@Scheduled` annotations work well.
+
+4) During commit, rollback or recovery, if you need more information than just the transaction ID, do a lookup in your persistent store to find the contextual information you stored in steps 1) or 2).  Once the commit/rollback is successful, you can delete the relevant data from the persistent store.
+
+5) Write a program which generates a report about incomplete transactions, based on the data persisted in steps 1) or 2) and deleted in step 4).  This helps you to sleep well at night, knowing that everything is indeed consistent. Should something be inconsistent, you will then have the information required to fix the inconsistencies.
+
+##Future features
+See the issues in Github.
 
 ##License
 

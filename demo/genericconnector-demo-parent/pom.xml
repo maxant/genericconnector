@@ -22,9 +22,10 @@
     </properties>
 
 	<modules>
+        <module>../genericconnector-demo-webservice-letter</module>
         <module>../genericconnector-demo-webservice-acquirer</module>
         <module>../genericconnector-demo-webservice-bookingsystem</module>
-        <module>../genericconnector-demo-webservice-letter</module>
+        <module>../genericconnector-demo-common</module>
         <module>../genericconnector-demo-javaee-client</module>
         <module>../genericconnector-demo-javaee-ear</module>
         <module>../genericconnector-demo-springboot-atomikos</module>

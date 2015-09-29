@@ -1,37 +1,30 @@
-#genericconnector
+#genericconnector Implementation
 
-This folder contains the source of the actual generic connector resource adapter.
+This folder contains the source of the actual generic connector resource adapter:
 
-Build using Maven starting from inside `genericconnector-parent`
+- `genericconnector-parent` - Build using Maven starting from inside this folder.
+- `genericconnector-api` - builds the API which your code needs to be dependent on.
+- `genericconnector-impl` - contains the Java EE implementation. Not required for Spring/Standalone applications.
+- `genericconnector-rar` - assembles the resource adapter used in Java EE environments.
+- `genericconnector-javase-common-api` - Additional code used when not in a Java EE environment.
+- `genericconnector-atomikos-api` - Additional API code for projects using the Atomikos transaction manager.
+- `genericconnector-atomikos-impl` - Additional implementation code for projects using the Atomikos manager.
+- `genericconnector-bitronix-api` - Additional API code for projects using the Bitronix transaction manager.
+- `genericconnector-bitronix-impl` - Additional implementation code for projects using the Bitronix manager.
 
-- `genericconnector-api` - builds the API on which your code should be dependent
-- `genericconnector-impl` - 
-- `genericconnector-rar` - 
+For example on how to use this code, please see ../demo/README.md
 
-- `genericconnector-javase-common-api` - 
-- `genericconnector-atomikos-api` - 
-- `genericconnector-atomikos-impl` - 
-- `genericconnector-bitronix-api` - 
-- `genericconnector-bitronix-impl` - 
+Otherwise see:
 
-- `genericconnector-parent` - 
-
-The code here builds a generic JCA resource adapter capable of binding things like web services into JTA global transactions controlled by Java EE application servers.
-
-See details at http://blog.maxant.co.uk/pebble/2015/08/04/1438716480000.html
-
-Unlike WS-AT the idea is that the resources being integrated, like web services, have business operations for executing business logic and then committing or rolling
-back the business logic.  If the web service you want to integrate has no commit operation, because for example the execution already does it, then simply leave the 
-implementation of the commit callback empty (see below).  Transactions will be eventually consistent.
-
-Compatible with Java EE 6 (JCA 1.5) upwards and Java SE 1.6 upwards.
-Tested on JBoss EAP 6.2, Wildfly 8.2 and Wildfly 9.0.
+- ../README.md
+- http://blog.maxant.co.uk/pebble/2015/08/04/1438716480000.html
+- TODO
 
 ##Usage
 
-See blog article (above) for details.
+See blog article (above) for details, or ../README.md for other examples.
 
-Briefly:
+For Java EE, briefly:
 
 1) Register commit and rollback callbacks:
 
@@ -94,28 +87,9 @@ Briefly:
         ...  
       }    
       //TRANSACTION END
-    
-##FAQ
-
-See end of blog article.
-
-##More advanced setups
-
-1) Call a service (EJB) which persists the intention to call the remote system, in a new transaction, which commits immediately. This can be used during recovery to tell the remote system to rollback. It depends on the system, but a good one lets you always send your reference number or a reference number from a previous interaction, so that the context is clear. That way you can tell the remote system to forget what you did during the execution stage. Imagine the execution stage didn't response and you got a timeout from the remote service. But also imagine that internally, they had completed the execution stage. Because you rollback the transaction after this failure, the transaction manager will call your rollback handler and you can tell the remote system to cancel whatever it was you did when you were executing.
-
-2) Call a service (EJB) which persist the result of the remote system call, in a new transaction, which commits immediately. Persist that info together with the transaction ID, so that you can access the info during commit, rollback or recovery, if you need to. Imagine having to cancel something using the ID that they returned.  That isn't too great a system though, because what if there was simply a timeout and you didn't get the response, but they did complete on their side!  That is why you should perist the intention to call their service - see above.
-
-3) Create cleanup jobs for deleting old data which you persisted in steps 1) or 2) above. EJBs with `@Scheduled` annotations work well.
-
-4) During commit, rollback or recovery, if you need more information than just the transaction ID, do a lookup in your persistent store to find the contextual information you stored in steps 1) or 2).  Once the commit/rollback is successful, you can delete the relevant data from the persistent store.
-
-5) Write a program which generates a report about incomplete transactions, based on the data persisted in steps 1) or 2) and deleted in step 4).  This helps you to sleep well at night, knowing that everything is indeed consistent. Should something be inconsistent, you will then have the information required to fix the inconsistencies.
-
-##Future features
-- `commit` and `rollback` could provide a parameter named `attemptNumber` which tells the application code how many times it has attempted to commit or rollback, so that the application code can decided to put the transaction into a dead letter queue if it wants to. 
 
 ##Configuration in JBoss:
-Insert under e.g. `jboss-install/standalone/configuration/server.xml`:
+Insert under e.g. `jboss-install/standalone/configuration/standalone.xml`:
 
         <subsystem xmlns="urn:jboss:domain:resource-adapters:2.0">
             <resource-adapters>
@@ -124,7 +98,7 @@ Insert under e.g. `jboss-install/standalone/configuration/server.xml`:
                     
                         <!-- WATCH OUT FOR THE VERSION NUNBER HERE!! -->
                     
-                        genericconnector-demo-javaee-ear-2.1.1-SNAPSHOT.ear#genericconnector-rar-2.1.1-SNAPSHOT.rar
+                        genericconnector-demo-javaee-ear-2.1.0.ear#genericconnector-rar-2.1.0.rar
                     </archive>
                     <transaction-support>XATransaction</transaction-support>
                     <connection-definitions>
@@ -211,7 +185,14 @@ TODO
 
 TODO
 
+##Configuration in Tomcat
+See ../demo/genericconnector-demo-tomcat-bitronix or ../demo/genericconnector-demo-tomcat-atomikos for more details.
 
+##Configuration in Jetty
+See ../demo/genericconnector-demo-tomcat-bitronix or ../demo/genericconnector-demo-tomcat-atomikos for more details.
+
+##Configuration in Spring Boot
+See ../demo/genericconnector-demo-springboot-bitronix or ../demo/genericconnector-demo-springboot-atomikos for more details.
 
 ##License
 
