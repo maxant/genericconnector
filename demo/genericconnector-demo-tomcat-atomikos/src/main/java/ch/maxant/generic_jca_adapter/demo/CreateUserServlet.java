@@ -33,7 +33,7 @@ import javax.transaction.UserTransaction;
 
 import com.atomikos.icatch.jta.UserTransactionManager;
 
-import ch.maxant.generic_jca_adapter.AtomikosTransactionConfigurator;
+import ch.maxant.generic_jca_adapter.TransactionConfigurator;
 import ch.maxant.generic_jca_adapter.BasicTransactionAssistanceFactory;
 import ch.maxant.generic_jca_adapter.BasicTransactionAssistanceFactoryImpl;
 import ch.maxant.generic_jca_adapter.CommitRollbackCallback;
@@ -134,7 +134,7 @@ public class CreateUserServlet extends HttpServlet implements ServletContextList
 					//nothing to do, this service autocommits.
 				}
 			};
-			AtomikosTransactionConfigurator.setup("xa/letterWriter", commitRollbackCallback);
+			TransactionConfigurator.setup("xa/letterWriter", commitRollbackCallback);
 
 		}
 		{
@@ -150,14 +150,14 @@ public class CreateUserServlet extends HttpServlet implements ServletContextList
 					bookingService.bookTickets(txid);
 				}
 			};
-			AtomikosTransactionConfigurator.setup("xa/bookingSystem", commitRollbackCallback);
+			TransactionConfigurator.setup("xa/bookingSystem", commitRollbackCallback);
 		}
 	}
 
 	@Override
 	public void contextDestroyed(ServletContextEvent sce) {
-		AtomikosTransactionConfigurator.unregisterMicroserviceResourceFactory("xa/bookingSystem");
-		AtomikosTransactionConfigurator.unregisterMicroserviceResourceFactory("xa/letterWriter");
+		TransactionConfigurator.unregisterMicroserviceResourceFactory("xa/bookingSystem");
+		TransactionConfigurator.unregisterMicroserviceResourceFactory("xa/letterWriter");
 
 		//dont do this here - see note in #contextInitialized
 		new UserTransactionManager().close();

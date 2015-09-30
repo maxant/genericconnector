@@ -1,4 +1,0 @@
-<!-- ... -->
-  <Listener className="bitronix.tm.integration.tomcat55.BTMLifecycleListener" ></Listener>
-<!-- ... -->
-

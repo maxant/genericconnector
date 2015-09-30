@@ -39,7 +39,7 @@ import javax.transaction.UserTransaction;
 import bitronix.tm.TransactionManagerServices;
 import bitronix.tm.jndi.BitronixContext;
 import ch.maxant.generic_jca_adapter.BasicTransactionAssistanceFactory;
-import ch.maxant.generic_jca_adapter.BitronixTransactionConfigurator;
+import ch.maxant.generic_jca_adapter.TransactionConfigurator;
 import ch.maxant.generic_jca_adapter.CommitRollbackCallback;
 import ch.maxant.generic_jca_adapter.TransactionAssistant;
 import ch.maxant.jca_demo.bookingsystem.BookingSystemWebServiceService;
@@ -139,7 +139,7 @@ public class CreateUserServlet extends HttpServlet implements ServletContextList
 					new BookingSystemWebServiceService().getBookingSystemPort().bookTickets(txid);
 				}
 			};
-			BitronixTransactionConfigurator.setup("xa/bookingService", bookingCommitRollbackCallback);
+			TransactionConfigurator.setup("xa/bookingService", bookingCommitRollbackCallback);
 
 			CommitRollbackCallback letterCommitRollbackCallback = new CommitRollbackCallback() {
 				private static final long serialVersionUID = 1L;
@@ -153,14 +153,14 @@ public class CreateUserServlet extends HttpServlet implements ServletContextList
 					//nothing to do, this service autocommits.
 				}
 			};
-			BitronixTransactionConfigurator.setup("xa/letterService", letterCommitRollbackCallback);
+			TransactionConfigurator.setup("xa/letterService", letterCommitRollbackCallback);
 		}
 	}
 
 	@Override
 	public void contextDestroyed(ServletContextEvent sce) {
-		BitronixTransactionConfigurator.unregisterMicroserviceResourceFactory("xa/bookingService");
-		BitronixTransactionConfigurator.unregisterMicroserviceResourceFactory("xa/letterService");
+		TransactionConfigurator.unregisterMicroserviceResourceFactory("xa/bookingService");
+		TransactionConfigurator.unregisterMicroserviceResourceFactory("xa/letterService");
 
 		//dont do this here - see note in #contextInitialized
         TransactionManagerServices.getTransactionManager().shutdown();

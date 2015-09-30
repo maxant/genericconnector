@@ -5,7 +5,7 @@ Note: this project depends on code found in the `../genericconnector-demo-spring
 This project contains the following classes:
 
 - `BaseMain` - an abstract class which the main application inherits from. This class setups up the commit/rollback callback for two services which the application calls. It deregisters the callbacks during shutdown.
-- `Config` - This class creates the `BasicTransactionAssistanceFactory` which is injected into the service which calls the two back-end services. See `../genericconnector-demo-springboot-common/src/.../AppService.java` to see how they are injected.  This class is a standard Spring configuration factory bean but you could equally define this bean in Spring's standard XML configuration.
+- `Config` - This class creates the `BasicTransactionAssistanceFactory` which is injected into the service which calls the two back-end services. See `../genericconnector-demo-springboot-common/src/.../AppService.java` to see how they are injected.  Because we need one instance of the factory per microservice we are calling, we use the bean's name as the qualifier.  This class is a standard Spring configuration factory bean but you could equally define this bean in Spring's standard XML configuration.
 - `DemoSpringBootServerBitronix` - This class contains the main method to start the application. It is based on https://spring.io/guides/gs/rest-service/ and https://github.com/spring-projects/spring-boot/blob/master/spring-boot-samples/spring-boot-sample-jta-bitronix and once you run this main class, you can test the application by calling either http://localhost:8191/createUser?username=ant for a successful case or http://localhost:8191/createUser?username=john for a failure case.
 
 ##License

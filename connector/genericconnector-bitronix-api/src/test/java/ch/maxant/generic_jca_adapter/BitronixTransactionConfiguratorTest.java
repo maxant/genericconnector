@@ -39,7 +39,7 @@ public class BitronixTransactionConfiguratorTest {
 		assertEquals(0, ResourceRegistrar.getResourcesUniqueNames().size());
 
 		//TEST
-		BitronixTransactionConfigurator.setup("a", new CommitRollbackCallback() {
+		TransactionConfigurator.setup("a", new CommitRollbackCallback() {
 			private static final long serialVersionUID = 1L;
 			@Override
 			public void rollback(String txid) throws Exception {
@@ -55,7 +55,7 @@ public class BitronixTransactionConfiguratorTest {
 		
 		
 		//TEST
-		BitronixTransactionConfigurator.unregisterMicroserviceResourceFactory("a");
+		TransactionConfigurator.unregisterMicroserviceResourceFactory("a");
 
 		assertEquals(0, MicroserviceResourceProducer.getProducers().size());
 		assertEquals(0, ResourceRegistrar.getResourcesUniqueNames().size());

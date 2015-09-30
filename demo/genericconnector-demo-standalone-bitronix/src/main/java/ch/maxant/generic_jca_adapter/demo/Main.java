@@ -29,7 +29,7 @@ import bitronix.tm.TransactionManagerServices;
 import bitronix.tm.jndi.BitronixContext;
 import bitronix.tm.resource.ResourceLoader;
 import ch.maxant.generic_jca_adapter.BasicTransactionAssistanceFactory;
-import ch.maxant.generic_jca_adapter.BitronixTransactionConfigurator;
+import ch.maxant.generic_jca_adapter.TransactionConfigurator;
 import ch.maxant.generic_jca_adapter.CommitRollbackCallback;
 import ch.maxant.generic_jca_adapter.TransactionAssistant;
 import ch.maxant.jca_demo.bookingsystem.BookingSystem;
@@ -37,6 +37,9 @@ import ch.maxant.jca_demo.bookingsystem.BookingSystemWebServiceService;
 import ch.maxant.jca_demo.letterwriter.LetterWebServiceService;
 import ch.maxant.jca_demo.letterwriter.LetterWriter;
 
+/**
+ * An example of how to use Bitronix. 
+ */
 public class Main {
 
     public static void main(String[] args) throws Exception {
@@ -78,8 +81,8 @@ public class Main {
 		};
 
         {//once per microservice that you want to use - do this when app starts, so that recovery can function immediately
-        	BitronixTransactionConfigurator.setup("xa/bookingService", bookingCommitRollbackCallback);
-        	BitronixTransactionConfigurator.setup("xa/letterService", letterCommitRollbackCallback);
+        	TransactionConfigurator.setup("xa/bookingService", bookingCommitRollbackCallback);
+        	TransactionConfigurator.setup("xa/letterService", letterCommitRollbackCallback);
         }
         
         String username = "ant";
@@ -122,8 +125,8 @@ public class Main {
         }
 
         //container shutdown
-		BitronixTransactionConfigurator.unregisterMicroserviceResourceFactory("xa/bookingService");
-		BitronixTransactionConfigurator.unregisterMicroserviceResourceFactory("xa/letterService");
+		TransactionConfigurator.unregisterMicroserviceResourceFactory("xa/bookingService");
+		TransactionConfigurator.unregisterMicroserviceResourceFactory("xa/letterService");
         tm.shutdown();
         rl.shutdown();
     }

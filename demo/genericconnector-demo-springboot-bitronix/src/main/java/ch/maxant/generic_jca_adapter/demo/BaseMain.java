@@ -16,7 +16,7 @@
  */
 package ch.maxant.generic_jca_adapter.demo;
 
-import ch.maxant.generic_jca_adapter.BitronixTransactionConfigurator;
+import ch.maxant.generic_jca_adapter.TransactionConfigurator;
 import ch.maxant.generic_jca_adapter.CommitRollbackCallback;
 import ch.maxant.jca_demo.bookingsystem.BookingSystemWebServiceService;
 import ch.maxant.jca_demo.letterwriter.LetterWebServiceService;
@@ -36,7 +36,7 @@ public abstract class BaseMain {
     				new BookingSystemWebServiceService().getBookingSystemPort().bookTickets(txid);
     			}
     		};
-    		BitronixTransactionConfigurator.setup("xa/bookingService", bookingCommitRollbackCallback);
+    		TransactionConfigurator.setup("xa/bookingService", bookingCommitRollbackCallback);
 
     		CommitRollbackCallback letterCommitRollbackCallback = new CommitRollbackCallback() {
     			private static final long serialVersionUID = 1L;
@@ -50,7 +50,7 @@ public abstract class BaseMain {
     				//nothing to do, this service autocommits.
     			}
     		};
-    		BitronixTransactionConfigurator.setup("xa/letterService", letterCommitRollbackCallback);
+    		TransactionConfigurator.setup("xa/letterService", letterCommitRollbackCallback);
     	}
 
     	//when app shutsdown, we want to deregister the microservice from bitronix's singleton transaction manager.
@@ -60,8 +60,8 @@ public abstract class BaseMain {
     		@Override
     		public void run() {
     			//shutdown
-    			BitronixTransactionConfigurator.unregisterMicroserviceResourceFactory("xa/bookingService");
-    			BitronixTransactionConfigurator.unregisterMicroserviceResourceFactory("xa/letterService");
+    			TransactionConfigurator.unregisterMicroserviceResourceFactory("xa/bookingService");
+    			TransactionConfigurator.unregisterMicroserviceResourceFactory("xa/letterService");
     		}
     	});
 	

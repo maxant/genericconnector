@@ -28,7 +28,12 @@ import com.atomikos.icatch.config.UserTransactionServiceImp;
 import com.atomikos.icatch.jta.UserTransactionManager;
 import com.mysql.jdbc.jdbc2.optional.MysqlXADataSource;
 
-/** working out how to use atomikos, before building {@link Main} */
+/**
+ * Working out how to use Atomikos, before building {@link Main}.
+ * It is not intended that you write your applications like this - use JCA+EJB or Spring instead!
+ * There is way too much boilerplate code here.
+ * Based on examples found at the Atomikos website.
+ */
 public class TestAtomikos {
 
 	public static void main(String[] args) throws Exception {

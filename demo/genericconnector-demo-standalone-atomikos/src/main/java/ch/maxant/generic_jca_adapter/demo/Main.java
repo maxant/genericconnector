@@ -29,7 +29,7 @@ import com.atomikos.icatch.config.UserTransactionServiceImp;
 import com.atomikos.icatch.jta.UserTransactionManager;
 import com.mysql.jdbc.jdbc2.optional.MysqlXADataSource;
 
-import ch.maxant.generic_jca_adapter.AtomikosTransactionConfigurator;
+import ch.maxant.generic_jca_adapter.TransactionConfigurator;
 import ch.maxant.generic_jca_adapter.BasicTransactionAssistanceFactory;
 import ch.maxant.generic_jca_adapter.BasicTransactionAssistanceFactoryImpl;
 import ch.maxant.generic_jca_adapter.CommitRollbackCallback;
@@ -39,6 +39,10 @@ import ch.maxant.jca_demo.bookingsystem.BookingSystemWebServiceService;
 import ch.maxant.jca_demo.letterwriter.LetterWebServiceService;
 import ch.maxant.jca_demo.letterwriter.LetterWriter;
 
+/**
+ * An example of how to use Atomikos. 
+ * Based on examples found at the Atomikos website.
+ */
 public class Main {
 
     public static void main(String[] args) throws Exception {
@@ -74,8 +78,8 @@ public class Main {
 		};
 		
         {//once per microservice that you want to use - do this when app starts, so that recovery can function immediately
-        	AtomikosTransactionConfigurator.setup("xa/bookingService", bookingCommitRollbackCallback);
-        	AtomikosTransactionConfigurator.setup("xa/letterService", letterCommitRollbackCallback);
+        	TransactionConfigurator.setup("xa/bookingService", bookingCommitRollbackCallback);
+        	TransactionConfigurator.setup("xa/letterService", letterCommitRollbackCallback);
         }
 
         //setup datasource
@@ -137,8 +141,8 @@ public class Main {
         }
 
         //container shutdown
-		AtomikosTransactionConfigurator.unregisterMicroserviceResourceFactory("xa/bookingService");
-		AtomikosTransactionConfigurator.unregisterMicroserviceResourceFactory("xa/letterService");
+		TransactionConfigurator.unregisterMicroserviceResourceFactory("xa/bookingService");
+		TransactionConfigurator.unregisterMicroserviceResourceFactory("xa/letterService");
 		utsi.shutdown(false);
     }
 

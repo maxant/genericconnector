@@ -23,9 +23,9 @@ import java.util.Map;
 import com.atomikos.icatch.config.UserTransactionServiceImp;
 
 /** Class used to setup the {@link CommitRollbackCallback} to be used for the given unique JNDI name. */
-public final class AtomikosTransactionConfigurator {
+public final class TransactionConfigurator {
 
-	private AtomikosTransactionConfigurator() {}
+	private TransactionConfigurator() {}
 	
 	private static Map<String, RecoverableMSResource> resources = new HashMap<String, RecoverableMSResource>();
 	

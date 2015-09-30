@@ -38,11 +38,11 @@ public class BasicTransactionAssistanceFactoryImpl implements BasicTransactionAs
 		this.jndiName = jndiName;
 	}
 
-	/** before calling this method, please ensure you have called {@link AtomikosTransactionConfigurator#setup(String, CommitRollbackCallback)} */
+	/** before calling this method, please ensure you have called {@link TransactionConfigurator#setup(String, CommitRollbackCallback)} */
 	@Override
 	public TransactionAssistant getTransactionAssistant() throws ResourceException {
 		//enlist a new resource into the transaction. it will be delisted, when its closed.
-		final CommitRollbackCallback commitRollbackCallback = AtomikosTransactionConfigurator.getCommitRollbackCallback(jndiName);
+		final CommitRollbackCallback commitRollbackCallback = TransactionConfigurator.getCommitRollbackCallback(jndiName);
 		MicroserviceXAResource ms = new MicroserviceXAResource(jndiName, commitRollbackCallback);
 		UserTransactionManager utm = getTM();
 		try {

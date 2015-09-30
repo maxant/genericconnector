@@ -55,7 +55,7 @@ public class BasicTransactionAssistanceFactoryImplTest {
 		when(tm.getTransaction()).thenReturn(tx);
 
 		//TEST
-		AtomikosTransactionConfigurator.setup("a", callback);
+		TransactionConfigurator.setup("a", callback);
 		
 		BasicTransactionAssistanceFactory f = new BasicTransactionAssistanceFactoryImpl("a"){
 			@Override
@@ -73,9 +73,9 @@ public class BasicTransactionAssistanceFactoryImplTest {
 		assertEquals(MicroserviceXAResource.class, c.getValue().getClass());
 		assertEquals("a", ((MicroserviceXAResource)c.getValue()).getJndiName());
 		
-		AtomikosTransactionConfigurator.unregisterMicroserviceResourceFactory("a");
+		TransactionConfigurator.unregisterMicroserviceResourceFactory("a");
 		
-		assertNull(AtomikosTransactionConfigurator.getCommitRollbackCallback("a"));
+		assertNull(TransactionConfigurator.getCommitRollbackCallback("a"));
 	}
 
 	@Test

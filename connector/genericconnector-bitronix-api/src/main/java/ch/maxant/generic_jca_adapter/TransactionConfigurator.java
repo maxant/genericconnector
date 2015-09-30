@@ -18,9 +18,9 @@ package ch.maxant.generic_jca_adapter;
 
 import java.io.File;
 
-public final class BitronixTransactionConfigurator {
+public final class TransactionConfigurator {
 
-	private BitronixTransactionConfigurator() {}
+	private TransactionConfigurator() {}
 	
 	/** one time configuration required for setting up a microservice in a transactional environment. */
 	public static void setup(final String jndiName, final CommitRollbackCallback commitRollbackCallback){

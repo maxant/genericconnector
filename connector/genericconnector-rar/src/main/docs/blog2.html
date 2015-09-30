@@ -13,23 +13,18 @@
 <body>
     
 <h2>
-Global Data Consistency, Microservices and Spring Boot
+Global Data Consistency, Microservices and Spring Boot / Tomcat / Jetty
 </h2>
 Ant Kutschera, 201509
 <br/>
 <br/>
 
-You will often build services which need to make several calls to several (micro-) services, or write to a database and call a microservice.  But what happens if there is an 
-error during a call to one of the services, or if the database commit fails, after you have called a service?  If a service call ends up writing data, you could end up with 
-a globally inconsistent state.  You will need to compensate for that, and typically that compensation is something that is hand written and complex.<br/>
+We often build applications which need to do several of the following things together: call backend (micro-) services, write to a database, send a JMS message, etc.  
+But what happens if there is an 
+error during a call to one of these resources, for example if a database insert fails, after you have called a remote web service?  If a remote service call writes data, 
+you could end up in a globally inconsistent state because the web service has committed its data, but the call to the database has not been committed.  
+In such cases you will need to compensate the error, and typically that compensation is something that is hand written and complex.
 <br/>
-In a 
-<a href='http://blog.maxant.co.uk/pebble/2015/08/04/1438716480000.html' target='_blank'>recent article</a>
-I wrote about how I have built a generic JCA connector which allows you to bind things like calls to microservices into global distributed transactions under the control
-of Java EE application servers, precisely so that you don't have to write your own framework code for handling failures during distributed transactions.  The connector takes
-care of ensuring that your data is eventually consistent.<br/>
-<br/>
-I have now extended the library to include automatic handling of commit / rollback / recovery into <b>Tomcat</b> or <b>Spring Boot</b> applications.<br/>
 <br/>
 Arun Gupta of Red Hat writes about different microservice patterns in the
 <a href='https://dzone.com/servlet/storage/?file=293353' target='_blank'>DZone Getting Started with Microservices Refcard</a>.
@@ -38,6 +33,112 @@ that failure in one of the latter calls to a microservice is either compensated,
 is again consistent.
 <br/>
 <br/>
+The traditional way to manage consistency in distributed environments is to make use of distributed transactions.  A transaction manager is put in place to oversee that the 
+global system remains consistent.  Protocols like two phase commit have been developed to standardise the process. JTA, JDBC and JMS are specifications which enable 
+application developers to keep multiple databases and message servers consistent. JCA is a specification which allows developers to write wrappers around EISs.  And in a 
+<a href='http://blog.maxant.co.uk/pebble/2015/08/04/1438716480000.html' target='_blank'>recent article</a>
+I wrote about how I have built a generic JCA connector which allows you to bind things like calls to microservices into these global distributed transactions, 
+precisely so that you don't have to write your own framework code for handling failures during distributed transactions.  The connector takes
+care of ensuring that your data is <b>eventually consistent</b>.
+<br/>
+<br/>
+But you won't always have access to a full Java EE application server, especially in a microservice environment, and so I have now extended the library to include 
+automatic handling of commit / rollback / recovery in the following environments:
+<ul>
+	<li>Spring Boot</li>
+	<li>Spring + Tomcat / Jetty</li>
+	<li>Servlets + Tomcat / Jetty</li>
+	<li>Spring Batch</li>
+	<li>Standalone Java applications</li>
+</ul>
+In order to be able to do this, the applications need to make use of a JTA compatible transaction manager, namely one of  
+<a href='http://www.atomikos.com' target="_blank">Atomikos</a> 
+or 
+<a href='https://github.com/bitronix/btm' target="_blank">Bitronix</a>.
+<br/>
+<br/>
+The process of setting up a remote call so that it is enlisted in the transaction is similar to when using the JCA adapter presented in the earlier blog article. There are two
+steps: 1) setting up a central commit / rollback handler and 2) calling the remote service inside a callback passed to a <code>TransactionAssistant</code> object retrieved
+from the <code>BasicTransactionAssistanceFactory</code> class.
+<br/>
+<br/>
+The first step look as follows:
+
+<div>
+<pre class="prettyprint linenums">
+CommitRollbackCallback bookingCommitRollbackCallback = new CommitRollbackCallback() {
+    private static final long serialVersionUID = 1L;
+    @Override
+    public void rollback(String txid) throws Exception {
+        new BookingSystemWebServiceService().getBookingSystemPort().cancelTickets(txid);
+    }
+    @Override
+    public void commit(String txid) throws Exception {
+        new BookingSystemWebServiceService().getBookingSystemPort().bookTickets(txid);
+    }
+};
+TransactionConfigurator.setup("xa/bookingService", bookingCommitRollbackCallback);
+</pre>
+</div>
+<b><small>Listing 1: Setting up a commit / rollback handler</small></b><br/>
+
+Line 12 passes the callback to the configurator together with a unique name for the service. This tells the transaction manager which callback to use,
+when committing or rolling back the transaction.  
+
+Inside the transaction, you need to fetch a wrapper object which is given the unique name used during the setup (above). The following example is Spring based:
+
+<div>
+<pre class="prettyprint linenums">
+@Service
+@Transactional
+public class SomeService {
+
+    @Autowired @Qualifier("xa/bookingService")
+    BasicTransactionAssistanceFactory bookingServiceFactory;
+
+    public String doSomethingInAGlobalTransactionWithARemoteService(String username) throws Exception {
+        //write to say a local database...
+
+        //call a remote service
+        String msResponse = null;
+        try(TransactionAssistant transactionAssistant = bookingServiceFactory.getTransactionAssistant()){
+            msResponse = transactionAssistant.executeInActiveTransaction(txid->{
+                BookingSystem service = new BookingSystemWebServiceService().getBookingSystemPort();
+                return service.reserveTickets(txid, username);
+            });
+        }
+        return msResponse;
+    }
+}
+</pre>
+</div>
+<b><small>Listing 2: Calling a web service inside a transaction</small></b><br/>
+
+Lines 5-6 provide an instance of the factory used on line 13 to get a <code>TransactionAssistant</code>. Note that you must ensure the name used is the same as one 
+used during the setup in Listing 1. This is because when the transaction is committed or rolled back, the transaction manager needs to use the correct commit / rollback callback.
+It is more than likely that you will have multiple such remote calls in your application, and for each remote service you call, you must setup a specific commit / rollback 
+callback.
+
+
+at end talk about
+- its hard to do rollback -> more likely just update a status rather than completely remove what was written during execution.
+- 
+
+        //warning: this instance must be thread safe and serializable. build the web service client on the fly!
+        CommitRollbackCallback letterCommitRollbackCallback = new CommitRollbackCallback() {
+
+the standalone generic connectors handle recovery internally - always! no need to provide methods for searching for open transactions. this has the advantage that everything is
+simpler for you, the app developer, but harder when the server machine dies, and all the logs pertaining to open transactions are lost in an unrecoverable way
+e.g. (hard disk failure).
+
+
+ `BasicTransactionAssistanceFactory` takes care of ensuring that the `TransactionAssistant` which it returns is enlisted into the transaction and delisted when that object is closed. 
+
+The registration of the commit/rollback callback is handled by the class named `TransactionConfigurator`.  
+
+
+            //example of configuring the transaction assistance component:
+            MicroserviceXAResource.configure(30000L, new File("."));
 
 
 standalone demo:
@@ -122,7 +223,6 @@ Copyright &copy;2015, Ant Kutschera.
     //TODO update version number to 2.1.1-SNAPSHOT
     //TODO http://arxiv.org/pdf/1509.05393v2.pdf
     //TODO integration tests for spring-boot?
-    //TODO update ALL readme.md
     //TODO write new blog
     //TODO test recovery if crashed on DB
     //TODO update old blog to refer to new blog
@@ -209,4 +309,26 @@ The author would like to talk about the problems of global data consistency in m
 See http://blog.maxant.co.uk/pebble/2015/08/04/1438716480000.html for a technical introduction which only discusses Java EE.  There is an upcoming article dedicated towards other technologies like Spring Boot.
 ---
 I am bilingual so I am happy to do the talk in German or English and can field questions in either. I am arranging to hold this talk locally in Berne, so by the time of your conference it will be nicely polished.
+------------------------------------------------------------------------------
+http://guild42.ch/?page_id=15
+---
+ant.kutschera@gmail.com
+---
+Hallo,
+
+Ich bin der Autor von ein Open Source "generic connector" welches man erlaubt nicht-transaktionale Ressourcen wie Microservices oder standard Web Services in eine Java Transaktion einzubinden, so dass das Recovery im Fehlerfall automatisch angestossen wird. 
+
+Ich könnte, wenn Sie Interesse haben, ein Gespräch mit den Titel "Global Data Consistency in Microservice Architectures" führen (Deutsch oder Englisch), welches circa 45 Minuten dauern würde, mit Zeit nachher für Fragen/Diskussionen.
+
+Etwas über mich: 
+Ich arbeite seit >10 Jahre in Bern (SBB, Mobiliar) als Senior Java EE Entwickler/Architekt (https://www.xing.com/profile/Ant_Kutschera). Ich habe auch mit Scala und Node JS gearbeitet. Ich schreibe ein Blog der inzwischen > 100 technische Artikel beinhaltet und welche auf www.dzone.com publiziert werden (http://blog.maxant.co.uk/pebble/). Ich habe ein selbst-publiziertes Buch über wie man mit Scala Enterprise Anwendungen schreiben kann, geschrieben (https://www.createspace.com/4228776) und ich habe mehrmals am SBB Developer Day (kleines Konferenz der SBB) präsentiert.
+
+Wenn Sie Interesse an dieser Präsentation hätten, können Sie mir gerne unter ant.kutschera@gmail.com kontaktieren.
+
+Mit freundlichen Grüssen,
+Ant Kutschera
+------------------------------------------------------------------------------
+SBB - asked Daniel Marthaler via XING for name of ERFA organiser.
+------------------------------------------------------------------------------
+Mobi - Asked the two Pascals
 ------------------------------------------------------------------------------
