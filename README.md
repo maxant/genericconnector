@@ -39,7 +39,17 @@ This folder contains:
 
 ##Sample Code
 
-1) Setting up commit and rollback callbacks:
+1) Depend on the API in your Maven POM:
+
+      <dependency>
+          <groupId>ch.maxant</groupId>
+          <artifactId>genericconnector-api</artifactId>
+          <version>2.1.0</version>
+      </dependency>
+
+Also see the POMs in the demo applications on Github, because you will also need to provide the relevant implementation modules at runtime.
+
+2) Setting up commit and rollback callbacks:
 
       CommitRollbackCallback bookingCommitRollbackCallback = new CommitRollbackCallback() {
           public void rollback(String txid) throws Exception {
@@ -52,7 +62,7 @@ This folder contains:
       };
       TransactionConfigurator.setup("xa/bookingService", bookingCommitRollbackCallback);
 
-2) Calling a service inside a transaction, so that ANY data written by the service, or indeed using a resource enlisted in the transaction (databases, JMS queues/topics, JCA adapters, etc.) remains globally consistent (all resources and the service commit, or rollback together):
+3) Calling a service inside a transaction, so that ANY data written by the service, or indeed using a resource enlisted in the transaction (databases, JMS queues/topics, JCA adapters, etc.) remains globally consistent (all resources and the service commit, or rollback together):
 
       @Inject BasicTransactionAssistanceFactory bookingServiceFactory;
 

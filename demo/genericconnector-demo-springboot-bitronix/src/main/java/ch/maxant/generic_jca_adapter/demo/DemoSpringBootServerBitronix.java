@@ -19,8 +19,6 @@ package ch.maxant.generic_jca_adapter.demo;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-import ch.maxant.generic_jca_adapter.demo.AppController;
-
 /**
  * demo of a spring boot application which publishes an endpoint 
  *(see {@link AppController}) and listens for requests.
@@ -29,7 +27,7 @@ import ch.maxant.generic_jca_adapter.demo.AppController;
  *  https://spring.io/guides/gs/rest-service/
  *  https://github.com/spring-projects/spring-boot/blob/master/spring-boot-samples/spring-boot-sample-jta-bitronix/src/main/java/sample/bitronix/SampleBitronixApplication.java
  *  
- *  test like this: http://localhost:8191/createUser?username=john
+ *  test like this: http://localhost:8191/createUser?username=ant
  */
 @SpringBootApplication
 public class DemoSpringBootServerBitronix extends BaseMain {

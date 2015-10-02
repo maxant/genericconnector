@@ -16,8 +16,6 @@
  */
 package ch.maxant.jca_demo.client;
 
-import java.util.logging.Logger;
-
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import javax.annotation.Resource;
@@ -30,8 +28,6 @@ import ch.maxant.generic_jca_adapter.TransactionAssistanceFactory;
 @Startup
 @Singleton
 public class TransactionAssistanceSetup_JavaSE6 {
-
-    private final Logger log = Logger.getLogger(this.getClass().getName());
 
     @Resource(lookup = "java:/maxant/Acquirer")
     private TransactionAssistanceFactory acquirerFactory;

@@ -81,7 +81,8 @@ public interface TransactionAssistanceFactory extends Serializable, Referenceabl
                 //recovery is optional, since you can configure adapter to handle state internally
                 
                 return new CommitRollbackRecoveryCallback(){
-                    @Override
+					private static final long serialVersionUID = 1L;
+					@Override
                     public void commit(String txid) throws Exception {
                         commit.apply(txid);
                     }

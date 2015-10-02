@@ -13,37 +13,42 @@
 <body>
     
 <h2>
-Global Data Consistency, Microservices and Spring Boot / Tomcat / Jetty
+Global Data Consistency, Transactions, Microservices and Spring Boot / Tomcat / Jetty
 </h2>
 Ant Kutschera, 201509
 <br/>
 <br/>
 
 We often build applications which need to do several of the following things together: call backend (micro-) services, write to a database, send a JMS message, etc.  
-But what happens if there is an 
-error during a call to one of these resources, for example if a database insert fails, after you have called a remote web service?  If a remote service call writes data, 
-you could end up in a globally inconsistent state because the web service has committed its data, but the call to the database has not been committed.  
-In such cases you will need to compensate the error, and typically that compensation is something that is hand written and complex.
+But what happens if there is an error during a call to one of these remote resources, 
+for example if a database insert fails, after you have called a web service?  If a remote service call writes data, 
+you could end up in a globally inconsistent state because the service has committed its data, but the call to the database has not been committed.  
+In such cases you will need to compensate the error, and typically the management of that compensation is something that is complex and hand written.
 <br/>
 <br/>
 Arun Gupta of Red Hat writes about different microservice patterns in the
 <a href='https://dzone.com/servlet/storage/?file=293353' target='_blank'>DZone Getting Started with Microservices Refcard</a>.
 Indeed the majority of those patterns show a microservice calling multiple other microservices. In all these cases, global data consistency becomes relevant, i.e. ensuring
 that failure in one of the latter calls to a microservice is either compensated, or the commital of the call is re-attempted, until all the data in all the microservices 
-is again consistent.
+is again consistent. In other articles about microservices there is often little or no mention of data consistency across remote boundaries, for example the good article titled 
+"<a href='http://www.contino.co.uk/microservices-not-a-free-lunch/' target='_blank'>Microservices are not a free lunch</a>"
+where the author just touches on the problem with the statement 
+"<i>when things have to happen ... transactionally ...things get complex with us needing to manage ... distributed transactions to tie various actions together</i>". Indeed 
+we do, but no mention is ever made of how to do this in such articles.
 <br/>
 <br/>
 The traditional way to manage consistency in distributed environments is to make use of distributed transactions.  A transaction manager is put in place to oversee that the 
 global system remains consistent.  Protocols like two phase commit have been developed to standardise the process. JTA, JDBC and JMS are specifications which enable 
-application developers to keep multiple databases and message servers consistent. JCA is a specification which allows developers to write wrappers around EISs.  And in a 
+application developers to keep multiple databases and message servers consistent. JCA is a specification which allows developers to write wrappers around 
+Enterprise Information Systems (EISs).  And in a 
 <a href='http://blog.maxant.co.uk/pebble/2015/08/04/1438716480000.html' target='_blank'>recent article</a>
 I wrote about how I have built a generic JCA connector which allows you to bind things like calls to microservices into these global distributed transactions, 
 precisely so that you don't have to write your own framework code for handling failures during distributed transactions.  The connector takes
 care of ensuring that your data is <b>eventually consistent</b>.
 <br/>
 <br/>
-But you won't always have access to a full Java EE application server, especially in a microservice environment, and so I have now extended the library to include 
-automatic handling of commit / rollback / recovery in the following environments:
+But you won't always have access to a full Java EE application server which supports JCA, especially in a microservice environment, 
+and so I have now extended the library to include automatic handling of commit / rollback / recovery in the following environments:
 <ul>
 	<li>Spring Boot</li>
 	<li>Spring + Tomcat / Jetty</li>
@@ -57,35 +62,16 @@ or
 <a href='https://github.com/bitronix/btm' target="_blank">Bitronix</a>.
 <br/>
 <br/>
+<b>The following description relies on the fact that you have read the 
+<a href='http://blog.maxant.co.uk/pebble/2015/08/04/1438716480000.html' target='_blank'>earlier blog article</a>.</b>
+<br/>
+<br/>
 The process of setting up a remote call so that it is enlisted in the transaction is similar to when using the JCA adapter presented in the earlier blog article. There are two
-steps: 1) setting up a central commit / rollback handler and 2) calling the remote service inside a callback passed to a <code>TransactionAssistant</code> object retrieved
-from the <code>BasicTransactionAssistanceFactory</code> class.
+steps: 1) calling the remote service inside a callback passed to a <code>TransactionAssistant</code> object retrieved
+from the <code>BasicTransactionAssistanceFactory</code> class, and 2) setting up a central commit / rollback handler.
 <br/>
 <br/>
-The first step look as follows:
-
-<div>
-<pre class="prettyprint linenums">
-CommitRollbackCallback bookingCommitRollbackCallback = new CommitRollbackCallback() {
-    private static final long serialVersionUID = 1L;
-    @Override
-    public void rollback(String txid) throws Exception {
-        new BookingSystemWebServiceService().getBookingSystemPort().cancelTickets(txid);
-    }
-    @Override
-    public void commit(String txid) throws Exception {
-        new BookingSystemWebServiceService().getBookingSystemPort().bookTickets(txid);
-    }
-};
-TransactionConfigurator.setup("xa/bookingService", bookingCommitRollbackCallback);
-</pre>
-</div>
-<b><small>Listing 1: Setting up a commit / rollback handler</small></b><br/>
-
-Line 12 passes the callback to the configurator together with a unique name for the service. This tells the transaction manager which callback to use,
-when committing or rolling back the transaction.  
-
-Inside the transaction, you need to fetch a wrapper object which is given the unique name used during the setup (above). The following example is Spring based:
+The first step, namely the code belonging to the <b>execution stage</b> (see earlier blog article), look as follows (when using Spring):
 
 <div>
 <pre class="prettyprint linenums">
@@ -112,101 +98,155 @@ public class SomeService {
 }
 </pre>
 </div>
-<b><small>Listing 2: Calling a web service inside a transaction</small></b><br/>
+<b><small>Listing 1: Calling a web service inside a transaction</small></b><br/>
 
-Lines 5-6 provide an instance of the factory used on line 13 to get a <code>TransactionAssistant</code>. Note that you must ensure the name used is the same as one 
-used during the setup in Listing 1. This is because when the transaction is committed or rolled back, the transaction manager needs to use the correct commit / rollback callback.
-It is more than likely that you will have multiple such remote calls in your application, and for each remote service you call, you must setup a specific commit / rollback 
-callback.
+Lines 5-6 provide an instance of the factory used on line 13 to get a <code>TransactionAssistant</code>. Note that you must ensure that the name used here is the same as the one 
+used during the setup in Listing 3, below. This is because when the transaction is committed or rolled back, the transaction manager needs to find the relevant callback used
+to commit or compensate the call made on line 16.
+It is more than likely that you will have multiple remote calls like this in your application, and for each remote service that you integrate, you must write code like that shown in 
+Listing 1.  Notice how this code is not that different to using JDBC to call a database. For each database that you enlist into the transaction, you need to:
+<ul>
+<li>inject a data source (analagous to lines 5-6)</li>
+<li>get a connection from the data source (line 13)</li>
+<li>create a statement (line 14)</li>
+<li>execute the statement (lines 15-16)</li>
+<li>close the connection (line 13, when the try block calls the close method of the auto-closable resource). 
+    It is <b>very important to close the transaction assistant</b> after it has been used, before the transaction is completed.</li>
+</ul>
 
+In order to create an instance of the <code>BasicTransactionAssistanceFactory</code> (lines 5-6 in Listing 1), we use a Spring <code>@Configuration</code>:
 
-at end talk about
-- its hard to do rollback -> more likely just update a status rather than completely remove what was written during execution.
-- 
+<div>
+<pre class="prettyprint linenums">
+@Configuration
+public class Config {
 
-        //warning: this instance must be thread safe and serializable. build the web service client on the fly!
-        CommitRollbackCallback letterCommitRollbackCallback = new CommitRollbackCallback() {
+    @Bean(name="xa/bookingService")
+    public BasicTransactionAssistanceFactory bookingSystemFactory() throws NamingException {
+        Context ctx = new BitronixContext();
+        BasicTransactionAssistanceFactory microserviceFactory = 
+                          (BasicTransactionAssistanceFactory) ctx.lookup("xa/bookingService");
+        return microserviceFactory;
+    }
+...
+</pre>
+</div>
+<b><small>Listing 2: Spring's <code>@Configuration</code>, used to create a factory</small></b><br/>
 
-the standalone generic connectors handle recovery internally - always! no need to provide methods for searching for open transactions. this has the advantage that everything is
-simpler for you, the app developer, but harder when the server machine dies, and all the logs pertaining to open transactions are lost in an unrecoverable way
-e.g. (hard disk failure).
+Line 4 of Listing 2 uses the same name as is found in the <code>@Qualifier</code> on line 5 of Listing 1.  The method on line 5 of Listing 2 creates a factory by looking it up
+in JNDI, in this example using Bitronix.  The code looks slightly different when using Atomikos - see the 
+<a href='https://github.com/maxant/genericconnector/blob/master/demo/genericconnector-demo-springboot-bitronix/src/main/java/ch/maxant/generic_jca_adapter/DemoSpringBootApplication.java' target='_blank'><code>demo/genericconnector-demo-springboot-atomikos</code></a>
+project for details. 
+<br/>
+<br/>
+The second step mentioned above is to setup a commit / rollback callback. This will be used by the transaction manager when the transaction around lines 8-20 of Listing 1 is 
+committed or rolled back. Note that there is a transaction because of the <code>@Transactional</code> annotation on line 2 of Listing 1. This setup is shown in Listing 3:
 
+<div>
+<pre class="prettyprint linenums">
+CommitRollbackCallback bookingCommitRollbackCallback = new CommitRollbackCallback() {
+    private static final long serialVersionUID = 1L;
+    @Override
+    public void rollback(String txid) throws Exception {
+        new BookingSystemWebServiceService().getBookingSystemPort().cancelTickets(txid);
+    }
+    @Override
+    public void commit(String txid) throws Exception {
+        new BookingSystemWebServiceService().getBookingSystemPort().bookTickets(txid);
+    }
+};
+TransactionConfigurator.setup("xa/bookingService", bookingCommitRollbackCallback);
+</pre>
+</div>
+<b><small>Listing 3: Setting up a commit / rollback handler</small></b><br/>
 
- `BasicTransactionAssistanceFactory` takes care of ensuring that the `TransactionAssistant` which it returns is enlisted into the transaction and delisted when that object is closed. 
+Line 12 passes the callback to the configurator together with the same unique name that was used in listings 1 and 2.
+<br/>
+<br/>
+The commit on line 9 may well be empty, if the service you are integrating only offers an execution method and a compensatory method for that execution. This commit callback
+comes from two phase commit where the aim is to keep the amount of time that distributed systems are inconsistent to an absolute minimum.  See the discussion towards the end
+of this article.
+<br/>
+<br/>
+Lines 5 and 9 instantiate a new web service client. Note that the callback handler <b>should be stateless</b>! It is serializable because on some platforms, e.g. Atomikos, 
+it will be serialized together with transactional information so that it can be called during recovery if necessary. I suppose you could make it stateful so long as it remained
+serializable, but I recommend leaving it stateless.
+<br/>
+<br/>
+The transaction ID (the String named <code>txid</code>) passed to the callback on lines 4 and 8 is passed to the web service in this example. In a more realistic example 
+you would use that ID to lookup contextual information that you saved during the execution stage (see lines 15 and 16 of Listing 1). 
+You would then use that contextual information, for example
+a reference number that came from an earlier call to the web service, to make the call to commit or rollback the web service call made in Listing 1.
+<br/>
+<br/>
+The standalone variations of these listings, for example to use this library outside of a Spring environment, are almost identical with the exception that you need to 
+manage the transaction manually. See the <code>demo</code> folder on Github for examples of code in several of the supported environments.
+<br/>
+<br/>
+Note that in the JCA version of the generic connector, you can configure whether or not the generic connector handles recovery internally. If it doesn't, you have to provide a callback which the 
+transaction manager can call, to find transactions which you believe are not yet completed.  In the non-JCA implentation discussed in this article, this is 
+always handled internally by the generic connector.
+The generic connector will write contextual information to a directory and uses that during recovery to tell the transaction manager what needs to be cleaned up.  Strictly 
+speaking, this is not quite right, because if your hard disk fails, all the information about incomplete transactions will be lost.  In strict two phase commit, this is why
+the transaction manager is allowed to call through to the resource to get a list of incomplete transactions requiring recovery.  In todays world of RAID controllers there is 
+no reason why a production machine should ever lose data due to a hard disk failure, and for that reason there is currently no option of providing a callback to the generic
+connector which can tell it what transactions are in a state that needs recovery.  In the event of a catastrophic hardware failure of a node, where it was not possible to get
+the node
+up and running again, you would need to physically copy all the files which the generic connector writes, from the old hard disk over to a second node. 
+The transaction manager and generic connector running on the second node would then
+work in harmony to complete all the hung transactions, by either committing them or rolling them back, whichever was relevant at the time of the crash. This process is no 
+different to copying transaction manager logs during disaster recovery, depending on which transaction manager you are using. The chances that you will ever need to do this
+are very small - in my career I have never known a production machine from a project/product that I have worked on to fail in such a way.
+<br/>
+<br/>
+You can configure where this contextual information is written using the second parameter shown in Listing 4:
 
-The registration of the commit/rollback callback is handled by the class named `TransactionConfigurator`.  
+<div>
+<pre class="prettyprint linenums">
+MicroserviceXAResource.configure(30000L, new File("."));
+</pre>
+</div>
+<b><small>Listing 4: Configuring the generic connector. The values shown are also the default values.</small></b><br/>
 
-
-            //example of configuring the transaction assistance component:
-            MicroserviceXAResource.configure(30000L, new File("."));
-
-
-standalone demo:
-https://github.com/maxant/genericconnector/blob/master/demo/genericconnector-demo-bitronix/src/main/java/ch/maxant/generic_jca_adapter/Main.java
-
-
-
-The first step in making sure your data remain eventually consistent is to add a transaction manager to your composite service. I have chosen to use 
-<a href='https://github.com/bitronix/btm' target="_blank">Bitronix</a> because it can be used with Tomcat and Spring.  Examples of how to integrate my library 
-with Spring Boot can be found
-<a href='https://github.com/maxant/genericconnector/blob/master/demo/genericconnector-demo-springboot-bitronix/src/main/java/ch/maxant/generic_jca_adapter/DemoSpringBootApplication.java' target='_blank'>here, for a standalone application</a>, or
-<a href='https://github.com/maxant/genericconnector/blob/master/demo/genericconnector-demo-springboot-bitronix/src/main/java/ch/maxant/generic_jca_adapter/DemoSpringBootServer.java' target='_blank'>here, for a standalone microservice</a>.
-An example of integrating with Tomcat 
-https://github.com/maxant/genericconnector/tree/master/demo/genericconnector-demo-tomcat-bitronix
-
-lack of docs:
-https://github.com/bitronix/btm/issues/51
-
-
-
-
-
-http://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-jta.html
-
-https://github.com/spring-projects/spring-boot/tree/master/spring-boot-samples/spring-boot-sample-jta-bitronix
-https://github.com/spring-projects/spring-boot/tree/master/spring-boot-starters/spring-boot-starter-jta-bitronix
-
-http://bitronix-transaction-manager.10986.n7.nabble.com/tomcat-7-0-26-and-bitronix-td1155.html
-
-Here are some links for Getting Bitronix to work with Spring, Spring Boot or 
-Tomcat is mostly a matter of ocnfiguration, for example 
-
-
-
-
-
-
-
-
-
-
-getting it to run (readme.md):
-
-context.xml is in meta-inf and has transaction defined
-
-
--Dbitronix.tm.configuration="/t/apache-tomcat-8.0.26-bitronix/bin/bitronix-default-config.properties"
-
-
-
-
-
-
-
-
-
-            //example of configuring the transaction assistance component:
-            MicroserviceXAResource.configure(30000L, new File("."));
-
-
-
-
+Listing 4 sets the minimum age of a transaction before it becomes relevant to recovery. In this case, the transaction will only be considered relevant for cleanup via recovery
+when it is more than 30 seconds old.  You may need to tune this value depending upon the time it takes your business process to execute and that may depend on the sum of 
+the timeout periods configured for each back-end service that you call.  There is a trade off between a low value and a high value: the lower the value, the less time it takes
+the background task running in the transaction manager to clean up during recovery, after a failure. That means the smaller the value is, the smaller the window of inconsistency
+is.  But be careful though, if the value is too low, the recovery task will attempt to 
+rollback transactions which are actually still active.  You can normally configure the transaction manager's timeout period, and the value set in Listing 4 should be 
+more than equal to the transaction manager's timeout period.
+Additionally, the directory where contextual data is stored is configured in Listing 4 to be the 
+local directory.  You can specify any directory, but please make sure the directory exists because the generic connector will not attempt to create it.
+<br/>
+<br/>
+If you are using Bitronix in a Tomcat environment, you may find that there isn't much information available on how to configure the environment. 
+It used to be documented very well, before Bitronix was moved from 
+codehaus.org over to Github. I have created
+<a href='https://github.com/bitronix/btm/issues/51' target='_blank'>an issue</a>
+with Bitronix to improve the documentation. The source code and readme file in the <code>demo/genericconnector-demo-tomcat-bitronix</code> folder contains hints and links.
+<br/>
+<br/>
+A final thing to note about using the generic connector is how the commit and rollback work.  All the connector is doing is piggy-backing on top of a JTA transaction so that 
+in the case that something needs to be rolled back, it gets notification via a callback.  The generic connector then passes this information over to your code in the 
+callback that is registered in Listing 3.  The actual rolling back of the data in the back end is not something that the
+generic connector does - it simply calls your callback so that you can tell the back end system to rollback the data.  Normally you won't rollback as such, rather you will 
+mark the data that was written, as being no longer valid, typically using states.  It can be very hard to properly rollback all traces of data that have already been written
+during the execution stage.  In a strict two phase commit protocol setup, e.g. using two databases, the data written in each resource remains in a locked state, untouchable
+by third party transactions, between execution and commit/rollback. Indeed that is one of the drawbacks of two phase commit because locking resources reduces scalability.
+Typically the back end system that you integrate won't lock data between the execution phase
+and the commit phase, and indeed the commit callback will remain empty because it has nothing to do - the data is typically already committed in the back end when line 16 of
+Listing 1 returns during the execution stage.  
+However, if you want to build a stricter system, and you can influence the implementation of the back end which you are integrating, then the data in the
+back end system can be "locked" between the execution and commit stages, typically by using states, for example "ticket reserved" after execution and "ticket booked" after 
+the commit.  Third party transactions would not be allowed to access resources / tickets in the "reserved" state.
+<br/>
+<br/>
+The generic connector and a number of demo projects are available at 
+<a href='https://github.com/maxant/genericconnector/' target='_blank'>https://github.com/maxant/genericconnector/</a> and the binaries and sources are available from
+<a href='http://mvnrepository.com/artifact/ch.maxant' target='_blank'>Maven</a>.
+<br/>
 <br/>
 Copyright &copy;2015, Ant Kutschera.
-
-
-
-
 
 
 
@@ -217,19 +257,20 @@ Copyright &copy;2015, Ant Kutschera.
 <hr>
 ------------------------------------------------------------------------------
 
-    //TODO http://www.contino.co.uk/microservices-not-a-free-lunch/
+    //TODO test recovery if crashed on DB
     //TODO branch 2.1.0 => update numbers
     //TODO publish version 2.1.0 with maven deploy
     //TODO update version number to 2.1.1-SNAPSHOT
-    //TODO http://arxiv.org/pdf/1509.05393v2.pdf
     //TODO integration tests for spring-boot?
     //TODO write new blog
-    //TODO test recovery if crashed on DB
     //TODO update old blog to refer to new blog
+    //TODO publish new blog
     //TODO publish also on twitter
     
+//critique of the cap theorem: http://arxiv.org/pdf/1509.05393v2.pdf
 
 ------------------------------------------------------------------------------
+conferences:
 http://lanyrd.com/topics/microservices/
 ------------------------------------------------------------------------------
 http://microxchg.io/2016/index.html (February)
@@ -328,7 +369,41 @@ Wenn Sie Interesse an dieser Präsentation hätten, können Sie mir gerne unter 
 Mit freundlichen Grüssen,
 Ant Kutschera
 ------------------------------------------------------------------------------
-SBB - asked Daniel Marthaler via XING for name of ERFA organiser.
+SBB
+---
+claudio.zesiger@sbb.ch
+---
+ERFA Vorschlag
+---
+Hi Claudio,
+
+Ich hätte etwas neues welches die SBB vielleicht als Vortrag interessieren könnte.
+
+Ich bin der Autor von ein Open Source "generic connector" welches man erlaubt nicht-transaktionale Ressourcen wie Microservices oder standard Web Services in eine Java Transaktion einzubinden, so dass das Recovery im Fehlerfall automatisch angestossen wird. 
+
+Ich könnte also ein Vortrag mit der Titel "Global Data Consistency in Microservice Architectures" (obwohl in Deutsch) führen, welches circa 45 Minuten dauern würde, mit Zeit nachher für Fragen/Diskussionen.
+
+Weitere Details:
+
+https://github.com/maxant/genericconnector
+
+http://blog.maxant.co.uk/pebble/2015/08/04/1438716480000.html
+
+http://blog.maxant.co.uk/pebble/2015/08/11/1439322480000.html
+
+Für Spring/Tomcat kommt noch ein Artikel...
+
+Und ein "Outline" der Präsi (pre-alpha):
+
+https://github.com/maxant/genericconnector/blob/master/connector/genericconnector-rar/src/main/docs/presentation_proposal_2003.ppt?raw=true
+
+Habt ihr Lust auf so ein Vortrag bei ein ERFA?
+
+Gruss,
+Ant
+
+PS Stefan schuldet mir noch ein Review vom ersten Blog Artikel ;-)
+PPS In MVP ist dieses Thema sehr relevant.
 ------------------------------------------------------------------------------
 Mobi - Asked the two Pascals
 ------------------------------------------------------------------------------

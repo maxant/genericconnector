@@ -9,6 +9,12 @@ It contains the following classes:
 - `AppRepository` - A Spring Data Repository for saving Account entities.
 - `AppService` - A Spring service which is transactional due to the class annotation which has `BasicTransactionAssistanceFactory` instances injected for binding two microservice calls (one to the letter service and one to the booking service) into the transaction.  This service first writes to the database and then calls the two services. The Spring container then commits when the method exists.  If the username "john" is sent to the service, it will throw a new exception at the end, and the transaction manager will automatically call the rollback methods on the two services (as well as rollback the database insert).  The two `BasicTransactionAssistanceFactory`s are created in the `Config` class, which is Atomikos/Bitronix specific.  See them under `../genericconnector-demo-springboot-atomikos` / `../genericconnector-demo-springboot-bitronix` respectively.  The database connection is configured in the `application.properties` file also located in the above named projects.
 
+See also:
+
+- http://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-jta.html
+- https://github.com/spring-projects/spring-boot/tree/master/spring-boot-samples/spring-boot-sample-jta-bitronix
+- https://github.com/spring-projects/spring-boot/tree/master/spring-boot-starters/spring-boot-starter-jta-bitronix
+
 ##License
 
  Copyright 2015 Ant Kutschera
