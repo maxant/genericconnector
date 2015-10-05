@@ -189,7 +189,9 @@ I will refer to the initial stage as <b><i>execution</i></b> and the latter stag
 an alternative to stage two, namely <b><i>rollback</i></b>, can be run in order to cancel the booking.  If you aren't friendly enough to rollback and you just leave the reservation open
 the provider should eventually let the reservation <b><i>timeout</i></b> so that 
 the reserved "resource" (money or tickets in this example) can be used elsewhere, for example so that the customer can go shopping or the ticket can be bought by someone
-else.
+else.  What is the motivation for this timeout? 
+<a href='https://en.wikipedia.org/wiki/Three-phase_commit_protocol'>Three phase commit</a>
+and the experience of the author that back end systems like ticket booking systems and payment systems only reserve resources like tickets and money for a limited amount of time.
 <br/>
 <br/>
 It is that kind of system that we want to bind into our transaction.  The contract for such services looks as follows:

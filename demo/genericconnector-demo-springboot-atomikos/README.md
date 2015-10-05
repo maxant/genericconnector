@@ -12,6 +12,12 @@ This project contains the following classes:
 
 - Watch out, transaction logs end up in maven repo, e.g. `/shared/local-maven-repo/org/springframework/boot/spring-boot/1.2.6.RELEASE/transaction-logs/tmlog-1.log` - if during development you change lots of stuff and tx logs are no longer compatible, delete them before restarting the app, to avoid lots of error messages in the logs.
 - If commit/rollback fails because the backend service temporarily goes down then Atomikos will keep trying but won't respond to the client with a success until it can complete the transaction. This is different from JBoss and Bitronix.  Atomikos will eventually respond with an Exception: `com.atomikos.icatch.HeurHazardException`.
+- SpringData, Atomikos and Mysql might not work nicely - according to Atomikos this is a problem with Mysql. According to Mysql this calling `XA START JOIN` is not legal. 
+    
+    WARN c.a.datasource.xa.XAResourceTransaction  : XAResource.start ( ...txid... , XAResource.TMJOIN ) on resource dataSource represented by XAResource instance com.mysql.jdbc.jdbc2.optional.JDBC4MysqlXAConnection@114f3b08
+    WARN c.a.datasource.xa.XAResourceTransaction  : XA resource 'dataSource': resume for XID '...txid...' raised -5: invalid arguments were given for the XA operation
+    ...
+    com.mysql.jdbc.jdbc2.optional.MysqlXAException: XAER_INVAL: Invalid arguments (or unsupported command)
 
 ##License
 

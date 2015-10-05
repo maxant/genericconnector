@@ -33,12 +33,12 @@ import javax.transaction.UserTransaction;
 
 import com.atomikos.icatch.jta.UserTransactionManager;
 
-import ch.maxant.generic_jca_adapter.TransactionConfigurator;
 import ch.maxant.generic_jca_adapter.BasicTransactionAssistanceFactory;
 import ch.maxant.generic_jca_adapter.BasicTransactionAssistanceFactoryImpl;
 import ch.maxant.generic_jca_adapter.CommitRollbackCallback;
 import ch.maxant.generic_jca_adapter.MicroserviceXAResource;
 import ch.maxant.generic_jca_adapter.TransactionAssistant;
+import ch.maxant.generic_jca_adapter.TransactionConfigurator;
 import ch.maxant.jca_demo.bookingsystem.BookingSystem;
 import ch.maxant.jca_demo.bookingsystem.BookingSystemWebServiceService;
 import ch.maxant.jca_demo.letterwriter.LetterWebServiceService;
@@ -121,13 +121,12 @@ public class CreateUserServlet extends HttpServlet implements ServletContextList
 		
 		//once per microservice that you want to use - do this when app starts, so that recovery can function immediately
 		{
-			final LetterWriter letterService = new LetterWebServiceService().getLetterWriterPort(); //take from pool if you want
 			CommitRollbackCallback commitRollbackCallback = new CommitRollbackCallback() {
 				private static final long serialVersionUID = 1L;
 				@Override
 				public void rollback(String txid) throws Exception {
 					//compensate by cancelling the letter
-					letterService.cancelLetter(txid);
+					new LetterWebServiceService().getLetterWriterPort().cancelLetter(txid);
 				}
 				@Override
 				public void commit(String txid) throws Exception {
@@ -138,16 +137,18 @@ public class CreateUserServlet extends HttpServlet implements ServletContextList
 
 		}
 		{
-			final BookingSystem bookingService = new BookingSystemWebServiceService().getBookingSystemPort();
 			CommitRollbackCallback commitRollbackCallback = new CommitRollbackCallback() {
 				private static final long serialVersionUID = 1L;
 				@Override
 				public void rollback(String txid) throws Exception {
-					bookingService.cancelTickets(txid);
+					getService().cancelTickets(txid);
 				}
 				@Override
 				public void commit(String txid) throws Exception {
-					bookingService.bookTickets(txid);
+					getService().bookTickets(txid);
+				}
+				private BookingSystem getService() {
+					return new BookingSystemWebServiceService().getBookingSystemPort();
 				}
 			};
 			TransactionConfigurator.setup("xa/bookingSystem", commitRollbackCallback);

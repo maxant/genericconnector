@@ -29,11 +29,11 @@ import com.atomikos.icatch.config.UserTransactionServiceImp;
 import com.atomikos.icatch.jta.UserTransactionManager;
 import com.mysql.jdbc.jdbc2.optional.MysqlXADataSource;
 
-import ch.maxant.generic_jca_adapter.TransactionConfigurator;
 import ch.maxant.generic_jca_adapter.BasicTransactionAssistanceFactory;
 import ch.maxant.generic_jca_adapter.BasicTransactionAssistanceFactoryImpl;
 import ch.maxant.generic_jca_adapter.CommitRollbackCallback;
 import ch.maxant.generic_jca_adapter.TransactionAssistant;
+import ch.maxant.generic_jca_adapter.TransactionConfigurator;
 import ch.maxant.jca_demo.bookingsystem.BookingSystem;
 import ch.maxant.jca_demo.bookingsystem.BookingSystemWebServiceService;
 import ch.maxant.jca_demo.letterwriter.LetterWebServiceService;
@@ -104,7 +104,6 @@ public class Main {
         XAResource db = xamysql.getXAResource();
         tx.enlistResource(db);
         
-
         try{//start of service method
         	String username = "ant";
         	String msResponse = null;
@@ -118,7 +117,7 @@ public class Main {
 	        }
 	        
 	        //call microservice #2
-	        BasicTransactionAssistanceFactory letterMicroserviceFactory = new BasicTransactionAssistanceFactoryImpl("xa/bookingService");
+	        BasicTransactionAssistanceFactory letterMicroserviceFactory = new BasicTransactionAssistanceFactoryImpl("xa/letterService");
 	        try(TransactionAssistant transactionAssistant = letterMicroserviceFactory.getTransactionAssistant()){
 	        	msResponse += "/" + transactionAssistant.executeInActiveTransaction(txid->{
 	        		return new LetterWebServiceService().getLetterWriterPort().writeLetter(txid, username);

@@ -39,9 +39,10 @@ import javax.transaction.UserTransaction;
 import bitronix.tm.TransactionManagerServices;
 import bitronix.tm.jndi.BitronixContext;
 import ch.maxant.generic_jca_adapter.BasicTransactionAssistanceFactory;
-import ch.maxant.generic_jca_adapter.TransactionConfigurator;
 import ch.maxant.generic_jca_adapter.CommitRollbackCallback;
 import ch.maxant.generic_jca_adapter.TransactionAssistant;
+import ch.maxant.generic_jca_adapter.TransactionConfigurator;
+import ch.maxant.jca_demo.bookingsystem.BookingSystem;
 import ch.maxant.jca_demo.bookingsystem.BookingSystemWebServiceService;
 import ch.maxant.jca_demo.letterwriter.LetterWebServiceService;
 
@@ -132,11 +133,14 @@ public class CreateUserServlet extends HttpServlet implements ServletContextList
 				private static final long serialVersionUID = 1L;
 				@Override
 				public void rollback(String txid) throws Exception {
-					new BookingSystemWebServiceService().getBookingSystemPort().cancelTickets(txid);
+					getService().cancelTickets(txid);
 				}
 				@Override
 				public void commit(String txid) throws Exception {
-					new BookingSystemWebServiceService().getBookingSystemPort().bookTickets(txid);
+					getService().bookTickets(txid);
+				}
+				private BookingSystem getService() {
+					return new BookingSystemWebServiceService().getBookingSystemPort();
 				}
 			};
 			TransactionConfigurator.setup("xa/bookingService", bookingCommitRollbackCallback);
