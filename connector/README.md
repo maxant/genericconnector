@@ -18,7 +18,7 @@ Otherwise see:
 
 - ../README.md
 - http://blog.maxant.co.uk/pebble/2015/08/04/1438716480000.html
-- TODO
+- http://blog.maxant.co.uk/pebble/2015/10/05/1444071540000.html
 
 ##Usage
 

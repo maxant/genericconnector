@@ -8,7 +8,7 @@ Imagine calling two web services and the call to the second one fails. You will 
 See details:
 
 - http://blog.maxant.co.uk/pebble/2015/08/04/1438716480000.html
-- TODO
+- http://blog.maxant.co.uk/pebble/2015/10/05/1444071540000.html 
 
 Unlike WS-AT and two phase commit, the idea is that the resources being integrated, like web services, have business operations for **executing** business logic and then **committing** (optional) or **rolling** back the business logic.  If the web service you want to integrate has no commit operation, because for example the execution already commits, then simply leave the implementation of the commit callback empty (see blog for more details).  In all cases, **transactions will be eventually consistent**.
 
