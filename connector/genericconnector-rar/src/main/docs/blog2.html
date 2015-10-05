@@ -41,7 +41,7 @@ The traditional way to manage consistency in distributed environments is to make
 global system remains consistent.  Protocols like two phase commit have been developed to standardise the process. JTA, JDBC and JMS are specifications which enable 
 application developers to keep multiple databases and message servers consistent. JCA is a specification which allows developers to write wrappers around 
 Enterprise Information Systems (EISs).  And in a 
-<a href='http://blog.maxant.co.uk/pebble/2015/08/04/1438716480000.html' target='_blank'>recent article</a>
+<a href='/pebble/2015/08/04/1438716480000.html' target='_blank'>recent article</a>
 I wrote about how I have built a generic JCA connector which allows you to bind things like calls to microservices into these global distributed transactions, 
 precisely so that you don't have to write your own framework code for handling failures during distributed transactions.  The connector takes
 care of ensuring that your data is <b>eventually consistent</b>.
@@ -63,7 +63,7 @@ or
 <br/>
 <br/>
 <b>The following description relies on the fact that you have read the 
-<a href='http://blog.maxant.co.uk/pebble/2015/08/04/1438716480000.html' target='_blank'>earlier blog article</a>.</b>
+<a href='/pebble/2015/08/04/1438716480000.html' target='_blank'>earlier blog article</a>.</b>
 <br/>
 <br/>
 The process of setting up a remote call so that it is enlisted in the transaction is similar to when using the JCA adapter presented in the earlier blog article. There are two
@@ -257,14 +257,7 @@ Copyright &copy;2015, Ant Kutschera.
 <hr>
 ------------------------------------------------------------------------------
 
-    //TODO publish version 2.1.0 with maven deploy, from branch RELEASE_2_1_0
-    //TODO push tag to remote
-    //TODO create release in github
-    //TODO update version number to 2.1.1-SNAPSHOT
     //TODO integration tests for spring-boot?
-    //TODO update old blog to refer to new blog
-    //TODO publish new blog
-    //TODO publish also on twitter
     
 //critique of the cap theorem: http://arxiv.org/pdf/1509.05393v2.pdf
 
