@@ -8,7 +8,7 @@
 	</parent>
 	<groupId>ch.maxant</groupId>
 	<artifactId>genericconnector-demo-springboot-bitronix</artifactId>
-	<version>2.1.0</version>
+	<version>2.1.1-SNAPSHOT</version>
 	<packaging>jar</packaging>
     <url>http://blog.maxant.co.uk/pebble/2015/08/04/1438716480000.html</url>
 
@@ -50,12 +50,12 @@
 		<dependency>
 			<groupId>ch.maxant</groupId>
 			<artifactId>genericconnector-bitronix-api</artifactId>
-			<version>2.1.0</version>
+			<version>${project.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>ch.maxant</groupId>
 			<artifactId>genericconnector-demo-springboot-common</artifactId>
-			<version>2.1.0</version>
+			<version>${project.version}</version>
 		</dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
