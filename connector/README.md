@@ -88,6 +88,14 @@ For Java EE, briefly:
       }    
       //TRANSACTION END
 
+##Failure During Commit / Rollback
+
+If commit/rollback fails because the backend service temporarily goes down or the network becomes unavailable then the transaction manager will have to re-attempt the commit/rollback.  But each transaction manager does this slightly differently. Here is a summary of what has been observed:
+
+- **JBoss TM** - The response from before the commit/rollback is returned to the client and the error that occurred during commit/rollback is handled internally. Next time there is a recovery, the commit/rollback is re-attempted.
+- **Atomikos TM** - Atomikos will keep trying the commit/rollback until it can complete the transaction. Once successful, a `com.atomikos.icatch.HeurHazardException` is thrown, so any successful response before an attempt to commit will be lost.
+- **Bitronix TM** - Same as JBoss.
+
 ##Configuration in JBoss:
 Insert under e.g. `jboss-install/standalone/configuration/standalone.xml`:
 
