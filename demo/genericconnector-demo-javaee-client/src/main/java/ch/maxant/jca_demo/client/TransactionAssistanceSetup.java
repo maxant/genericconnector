@@ -16,6 +16,11 @@
  */
 package ch.maxant.jca_demo.client;
 
+
+import static ch.maxant.jca_demo.client.IntegrationLayer.getAcquirer;
+import static ch.maxant.jca_demo.client.IntegrationLayer.getBookingsystem;
+import static ch.maxant.jca_demo.client.IntegrationLayer.getLetterwriter;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
@@ -29,10 +34,6 @@ import javax.ejb.Startup;
 
 import ch.maxant.generic_jca_adapter.TransactionAssistanceFactory;
 import ch.maxant.generic_jca_adapter.TransactionAssistanceFactory.CommitRollbackRecoveryCallback.Builder;
-import ch.maxant.jca_demo.acquirer.AcquirerWebServiceService;
-import ch.maxant.jca_demo.bookingsystem.BookingSystemWebServiceService;
-import ch.maxant.jca_demo.letterwriter.LetterWebServiceService;
-
 
 @Startup
 @Singleton
@@ -55,16 +56,14 @@ public class TransactionAssistanceSetup {
         acquirerFactory
             .registerCommitRollbackRecovery(new Builder()
             .withCommit( txid -> {
-                new AcquirerWebServiceService()
-                        .getAcquirerPort().bookReservation(txid);
+                getAcquirer().bookReservation(txid);
             })
             .withRollback( txid -> {
-                new AcquirerWebServiceService()
-                        .getAcquirerPort().cancelReservation(txid);
+            	getAcquirer().cancelReservation(txid);
             })
             .withRecovery( () -> {
                 try {
-                    List<String> txids = new AcquirerWebServiceService().getAcquirerPort().findUnfinishedTransactions();
+                    List<String> txids = getAcquirer().findUnfinishedTransactions();
                     txids = txids == null ? new ArrayList<>() : txids;
                     return txids.toArray(new String[0]);
                 } catch (Exception e) {
@@ -76,12 +75,10 @@ public class TransactionAssistanceSetup {
         bookingFactory
             .registerCommitRollbackRecovery(new Builder()
             .withCommit( txid -> {
-                new BookingSystemWebServiceService()
-                .getBookingSystemPort().bookTickets(txid);
+            	getBookingsystem().bookTickets(txid);
             })
             .withRollback( txid -> {
-                new BookingSystemWebServiceService()
-                .getBookingSystemPort().cancelTickets(txid);
+            	getBookingsystem().cancelTickets(txid);
             })
             //no recovery required, since the resource adapter has been configured to handle this internally
             .build());
@@ -92,8 +89,7 @@ public class TransactionAssistanceSetup {
                 //noop, since execution was already a commit
             })
             .withRollback( txid -> {
-                new LetterWebServiceService().getLetterWriterPort()
-                .cancelLetter(txid);
+            	getLetterwriter().cancelLetter(txid);
             })
             //no recovery required, since the resource adapter has been configured to handle this internally
             .build());

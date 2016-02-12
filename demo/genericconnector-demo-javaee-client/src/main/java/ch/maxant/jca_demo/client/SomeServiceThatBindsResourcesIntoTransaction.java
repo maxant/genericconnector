@@ -16,6 +16,10 @@
  */
 package ch.maxant.jca_demo.client;
 
+import static ch.maxant.jca_demo.client.IntegrationLayer.getAcquirer;
+import static ch.maxant.jca_demo.client.IntegrationLayer.getBookingsystem;
+import static ch.maxant.jca_demo.client.IntegrationLayer.getLetterwriter;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -34,10 +38,7 @@ import javax.sql.DataSource;
 import ch.maxant.generic_jca_adapter.TransactionAssistanceFactory;
 import ch.maxant.generic_jca_adapter.TransactionAssistant;
 import ch.maxant.jca_demo.acquirer.Acquirer;
-import ch.maxant.jca_demo.acquirer.AcquirerWebServiceService;
 import ch.maxant.jca_demo.bookingsystem.BookingSystem;
-import ch.maxant.jca_demo.bookingsystem.BookingSystemWebServiceService;
-import ch.maxant.jca_demo.letterwriter.LetterWebServiceService;
 import ch.maxant.jca_demo.letterwriter.LetterWriter;
 
 /*
@@ -81,9 +82,9 @@ public class SomeServiceThatBindsResourcesIntoTransaction {
     public String doSomethingInvolvingSeveralResources(String refNumber)
             throws Exception {
 
-        Acquirer acquirer = new AcquirerWebServiceService().getAcquirerPort();
-        BookingSystem bookingSystem = new BookingSystemWebServiceService().getBookingSystemPort();
-        LetterWriter letterWriter = new LetterWebServiceService().getLetterWriterPort();
+        Acquirer acquirer = getAcquirer();
+        BookingSystem bookingSystem = getBookingsystem();
+        LetterWriter letterWriter = getLetterwriter();
 
         try (TransactionAssistant acquirerTransactionAssistant = acquirerFactory.getTransactionAssistant();
              TransactionAssistant bookingTransactionAssistant = bookingFactory.getTransactionAssistant();

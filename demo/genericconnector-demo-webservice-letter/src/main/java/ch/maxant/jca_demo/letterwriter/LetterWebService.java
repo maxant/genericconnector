@@ -17,6 +17,7 @@
 package ch.maxant.jca_demo.letterwriter;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -26,9 +27,13 @@ import javax.jws.WebService;
 @WebService(name="LetterWriter")
 public class LetterWebService {
     
-    private final Logger log = Logger.getLogger(this.getClass().getName());
+	private final Logger log = Logger.getLogger(this.getClass().getName());
+
+	public static final AtomicInteger CALLS_EXECUTE = new AtomicInteger();
+	public static final AtomicInteger CALLS_ROLLBACK = new AtomicInteger();
     
     public String writeLetter(@WebParam(name="txid") String txid, @WebParam(name="referenceNumber") String referenceNumber) throws Exception {
+    	CALLS_EXECUTE.incrementAndGet();
 
         log.log(Level.INFO, "SEND LETTER: " + referenceNumber + " for TXID " + txid);
         if("FAILWSLetterWriter".equals(referenceNumber)){
@@ -39,6 +44,7 @@ public class LetterWebService {
     }
 
     public void cancelLetter(@WebParam(name="txId") String txId) throws IOException{
+    	CALLS_ROLLBACK.incrementAndGet();
         
         log.log(Level.INFO, "ROLLBACK LETTER: " + txId);
     }

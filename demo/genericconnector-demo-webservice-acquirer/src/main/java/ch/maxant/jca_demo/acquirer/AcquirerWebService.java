@@ -26,6 +26,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -35,6 +36,11 @@ import javax.jws.WebService;
 @WebService(name="Acquirer")
 public class AcquirerWebService {
 
+	public static final AtomicInteger CALLS_EXECUTE = new AtomicInteger();
+	public static final AtomicInteger CALLS_COMMIT = new AtomicInteger();
+	public static final AtomicInteger CALLS_ROLLBACK = new AtomicInteger();
+	public static final AtomicInteger CALLS_RECOVER = new AtomicInteger();
+	
     private static FileFilter executeFilter = new FileFilter() {
         @Override
         public boolean accept(File pathname) {
@@ -53,6 +59,7 @@ public class AcquirerWebService {
     private final Logger log = Logger.getLogger(this.getClass().getName());
     
     public String reserveMoney(@WebParam(name="txid") String txid, @WebParam(name="referenceNumber") String referenceNumber) throws Exception {
+    	CALLS_EXECUTE.incrementAndGet();
 
         log.log(Level.INFO, "EXECUTE: reserving money " + referenceNumber + " for TXID " + txid);
         if("FAILWSAcquirer".equals(referenceNumber)){
@@ -67,6 +74,7 @@ public class AcquirerWebService {
     }
 
     public void bookReservation(@WebParam(name="txId") String txId) throws IOException{
+    	CALLS_COMMIT.incrementAndGet();
         
         updateStatus(txId, "commit");
         
@@ -74,11 +82,13 @@ public class AcquirerWebService {
     }
 
     public void cancelReservation(@WebParam(name="txId") String txId) throws IOException {
+    	CALLS_ROLLBACK.incrementAndGet();
         updateStatus(txId, "rollback");
         log.log(Level.INFO, "rollback money: " + txId);
     }
     
     public List<String> findUnfinishedTransactions() throws IOException{
+    	CALLS_RECOVER.incrementAndGet();
         List<String> unfinishedTxs = new ArrayList<>();
 
         for(File f : f.listFiles(executeFilter)){
